@@ -147,6 +147,18 @@ class StudentController extends Controller
             $course = \App\Models\Course::with($relations)->findOrFail($id);
         } else {
             $course = $user->enrolledCourses()->with($relations)->findOrFail($id);
+
+            // Enforce the access window — deny entry to expired subscriptions.
+            $enrollment = \App\Models\Enrollment::where('user_id', $user->id)
+                ->where('course_id', $id)
+                ->first();
+            if ($enrollment && ! $enrollment->isActive()) {
+                return response()->json([
+                    'message'    => 'Your access to this course has expired.',
+                    'expired'    => true,
+                    'expires_at' => $enrollment->expires_at,
+                ], 403);
+            }
         }
 
         $progressService = app(CourseProgressService::class);
@@ -161,6 +173,14 @@ class StudentController extends Controller
             ->values()
             ->all();
 
+        // Tiered entitlements: tell the frontend exactly which features are
+        // unlocked, plus the available packages for the upsell UI.
+        $entitlements = app(\App\Services\EntitlementService::class)
+            ->resolve($user, (int) $id);
+        $packages = \App\Models\CoursePackage::where('course_id', $id)
+            ->orderBy('sort')
+            ->get(['id', 'name', 'price', 'entitlements']);
+
         return response()->json([
             'course' => $course,
             'completed_lesson_ids' => $completedLessonIds,
@@ -168,6 +188,8 @@ class StudentController extends Controller
             'progress_percentage' => $progress['progress_percentage'],
             'total_items' => $progress['total_items'],
             'completed_items' => $progress['completed_items'],
+            'entitlements' => $entitlements,
+            'packages' => $packages,
         ]);
     }
 

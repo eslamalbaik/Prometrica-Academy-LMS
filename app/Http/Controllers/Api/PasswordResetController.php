@@ -37,9 +37,9 @@ class PasswordResetController extends Controller
             ]
         );
 
-        // Construct the frontend URL pointing to Vuexy reset-password route
-        $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/');
-        $resetUrl = $frontendUrl . '/reset-password?token=' . $token . '&email=' . urlencode($email);
+        // Reset link goes to the student landing page
+        $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
+        $resetUrl = $landingUrl . '/reset-password?token=' . $token . '&email=' . urlencode($email);
 
         // Queue the reset password email to keep responses fast and non-blocking
         Mail::to($email)->queue(new ResetPasswordMail($resetUrl));

@@ -137,7 +137,20 @@ class QuizController extends Controller
     {
         $quiz = Quiz::with(['questions' => function($q) {
             $q->orderBy('order');
-        }, 'questions.options'])->findOrFail($id);
+        }, 'questions.options', 'module:id,course_id'])->findOrFail($id);
+
+        // ─── Entitlement gate (never trust the frontend) ────────────────────────
+        $courseId = $quiz->module?->course_id;
+        if ($courseId) {
+            $svc = app(\App\Services\EntitlementService::class);
+            if (! $svc->allows($request->user(), (int) $courseId, 'has_quizzes')) {
+                return response()->json([
+                    'error'         => 'upgrade_required',
+                    'feature'       => 'has_quizzes',
+                    'required_tier' => $svc->requiredTier((int) $courseId, 'has_quizzes') ?? 'Premium',
+                ], 403);
+            }
+        }
 
         // Security: Hide is_correct from frontend
         $quiz->questions->each(function ($question) {
@@ -160,6 +173,19 @@ class QuizController extends Controller
     {
         $user = $request->user();
         $quiz = Quiz::with('questions.options', 'module.course')->findOrFail($id);
+
+        // Entitlement gate — block grading for tiers without quiz access.
+        $courseId = $quiz->module?->course_id;
+        if ($courseId) {
+            $svc = app(\App\Services\EntitlementService::class);
+            if (! $svc->allows($user, (int) $courseId, 'has_quizzes')) {
+                return response()->json([
+                    'error'         => 'upgrade_required',
+                    'feature'       => 'has_quizzes',
+                    'required_tier' => $svc->requiredTier((int) $courseId, 'has_quizzes') ?? 'Premium',
+                ], 403);
+            }
+        }
 
         $validated = $request->validate([
             'answers' => 'required|array', // format: [{question_id: 1, option_id: 2}]
@@ -236,6 +262,7 @@ class QuizController extends Controller
             'passed_quiz_ids' => $progressStats['passed_quiz_ids'],
             'completed_items' => $progressStats['completed_items'],
             'total_items' => $progressStats['total_items'],
+            'is_course_completed' => $progressStats['progress_percentage'] === 100,
             'message' => $passed ? 'Congratulations, you passed!' : 'You did not pass. Try again.',
         ]);
     }

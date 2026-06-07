@@ -24,6 +24,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'avatar',
+        'phone',
     ];
 
     /**
@@ -77,5 +79,10 @@ class User extends Authenticatable
     public function certificates()
     {
         return $this->hasMany(Certificate::class);
+    }
+
+    public function productPurchases()
+    {
+        return $this->hasMany(ProductPurchase::class);
     }
 }

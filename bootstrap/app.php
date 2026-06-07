@@ -12,13 +12,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->statefulApi();
         $middleware->validateCsrfTokens(except: [
             'login',
             'register',
             'logout',
             'api/v1/auth/forgot-password',
             'api/v1/auth/reset-password',
+            'api/auth/google/exchange',
+            'auth/google/redirect',
+            'auth/google/callback',
         ]);
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
@@ -27,14 +29,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToGroup('api', [
             \App\Http\Middleware\NoCacheHeaders::class,
         ]);
-        
-        $middleware->redirectUsersTo(function (\Illuminate\Http\Request $request) {
-            $user = \Illuminate\Support\Facades\Auth::user();
-            if ($user && $user->role === 'admin') {
-                return env('FRONTEND_URL', 'http://localhost:5173') . '/admin';
-            }
-            return 'http://localhost:8080/student/dashboard';
-        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {

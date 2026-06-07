@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Certificate;
+use App\Models\Course;
+use App\Models\User;
 use App\Services\CourseProgressService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,10 +15,7 @@ class CertificateController extends Controller
 {
     public function __construct(private CourseProgressService $progressService) {}
 
-    /**
-     * GET /student/certificates
-     * قائمة شهادات الطالب المسجّل الدخول
-     */
+    /** GET /student/certificates */
     public function index(Request $request): JsonResponse
     {
         $certificates = Certificate::where('user_id', $request->user()->id)
@@ -26,15 +26,11 @@ class CertificateController extends Controller
         return response()->json($certificates);
     }
 
-    /**
-     * POST /student/courses/{id}/certificate
-     * إصدار شهادة إذا اكتمل الكورس 100%
-     */
+    /** POST /student/courses/{id}/certificate */
     public function issue(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
 
-        // تأكد أن الطالب مسجّل في الكورس
         if (! $user->enrolledCourses()->where('course_id', $id)->exists()) {
             return response()->json(['message' => 'You are not enrolled in this course.'], 403);
         }
@@ -48,7 +44,6 @@ class CertificateController extends Controller
             ], 422);
         }
 
-        // firstOrCreate يمنع الإصدار المزدوج بسبب unique constraint
         $certificate = Certificate::firstOrCreate(
             ['user_id' => $user->id, 'course_id' => $id]
         );
@@ -56,22 +51,39 @@ class CertificateController extends Controller
         $certificate->load('course:id,title,thumbnail,category');
 
         return response()->json([
-            'message' => $certificate->wasRecentlyCreated ? 'Certificate issued.' : 'Certificate already issued.',
+            'message'     => $certificate->wasRecentlyCreated ? 'Certificate issued.' : 'Certificate already issued.',
             'certificate' => $certificate,
         ], $certificate->wasRecentlyCreated ? 201 : 200);
     }
 
-    /**
-     * GET /certificates/{uuid}/verify  (public)
-     * التحقق من صحة الشهادة برابط عام
-     */
+    /** GET /certificates/{uuid}/download  (public — returns PDF) */
+    public function download(string $uuid)
+    {
+        $certificate = Certificate::where('uuid', $uuid)
+            ->with(['user:id,name', 'course:id,title,category'])
+            ->firstOrFail();
+
+        $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
+
+        $pdf = Pdf::loadView('certificates.certificate', [
+            'student'    => $certificate->user->name,
+            'course'     => $certificate->course->title,
+            'category'   => $certificate->course->category ?? '',
+            'issued_at'  => $certificate->issued_at->format('F j, Y'),
+            'uuid'       => strtoupper($certificate->uuid),
+            'verify_url' => $landingUrl . '/verify/' . $certificate->uuid,
+        ])->setPaper([0, 0, 841.89, 595.28], 'landscape'); // A4 landscape
+
+        $filename = 'certificate-' . strtolower(str_replace(' ', '-', $certificate->course->title)) . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /** GET /certificates/{uuid}/verify  (public — JSON) */
     public function verify(string $uuid): JsonResponse
     {
         $certificate = Certificate::where('uuid', $uuid)
-            ->with([
-                'user:id,name',
-                'course:id,title,thumbnail,category',
-            ])
+            ->with(['user:id,name', 'course:id,title,thumbnail,category'])
             ->first();
 
         if (! $certificate) {
@@ -79,35 +91,47 @@ class CertificateController extends Controller
         }
 
         return response()->json([
-            'valid'       => true,
-            'student'     => $certificate->user->name,
-            'course'      => $certificate->course->title,
-            'category'    => $certificate->course->category,
-            'issued_at'   => $certificate->issued_at->toDateString(),
-            'uuid'        => $certificate->uuid,
+            'valid'      => true,
+            'student'    => $certificate->user->name,
+            'course'     => $certificate->course->title,
+            'category'   => $certificate->course->category,
+            'issued_at'  => $certificate->issued_at->toDateString(),
+            'uuid'       => $certificate->uuid,
         ]);
     }
 
-    /**
-     * GET /dashboard/certificates  (admin)
-     * قائمة كل الشهادات الصادرة
-     */
+    /** POST /dashboard/certificates/issue  (admin — manually issue) */
+    public function adminIssue(Request $request): JsonResponse
+    {
+        $request->validate([
+            'user_id'   => 'required|exists:users,id',
+            'course_id' => 'required|exists:courses,id',
+        ]);
+
+        $certificate = Certificate::firstOrCreate([
+            'user_id'   => $request->input('user_id'),
+            'course_id' => $request->input('course_id'),
+        ]);
+
+        $certificate->load(['user:id,name,email', 'course:id,title,category']);
+
+        return response()->json([
+            'message'     => $certificate->wasRecentlyCreated ? 'Certificate issued.' : 'Certificate already exists.',
+            'certificate' => $certificate,
+        ], $certificate->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /** GET /dashboard/certificates  (admin) */
     public function adminIndex(Request $request): JsonResponse
     {
-        $certificates = Certificate::with([
-                'user:id,name,email',
-                'course:id,title,category',
-            ])
+        $certificates = Certificate::with(['user:id,name,email', 'course:id,title,category'])
             ->orderByDesc('issued_at')
             ->paginate(20);
 
         return response()->json($certificates);
     }
 
-    /**
-     * GET /dashboard/certificates/stats  (admin)
-     * إجمالي الشهادات لكل كورس
-     */
+    /** GET /dashboard/certificates/stats  (admin) */
     public function adminStats(): JsonResponse
     {
         $stats = Certificate::selectRaw('course_id, count(*) as issued_count')

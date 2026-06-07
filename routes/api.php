@@ -14,8 +14,13 @@ use App\Http\Controllers\API\StudentLessonController;
 Route::get('/landing/courses', [LandingCourseController::class, 'index']);
 Route::get('/landing/courses/{id}', [LandingCourseController::class, 'show']);
 
-// ─── Public certificate verification ────────────────────────────────────────
-Route::get('/certificates/{uuid}/verify', [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
+// Public digital-products storefront (marketing-safe fields only)
+Route::get('/landing/digital-products', [\App\Http\Controllers\Api\LandingDigitalProductController::class, 'index']);
+Route::get('/landing/digital-products/{product}', [\App\Http\Controllers\Api\LandingDigitalProductController::class, 'show']);
+
+// ─── Public certificate routes ───────────────────────────────────────────────
+Route::get('/certificates/{uuid}/verify',  [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
+Route::get('/certificates/{uuid}/download', [\App\Http\Controllers\Api\CertificateController::class, 'download']);
 
 Route::middleware('auth:sanctum')->prefix('student')->group(function () {
     Route::get('/my-courses', [\App\Http\Controllers\Api\StudentController::class, 'myCourses']);
@@ -68,9 +73,15 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::put('/lessons/{id}',     [\App\Http\Controllers\API\LessonController::class, 'update']);
     Route::delete('/lessons/{id}',  [\App\Http\Controllers\API\LessonController::class, 'destroy']);
 
+    // Module PDF attachments
+    Route::get('/modules/{id}/attachments',    [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'index']);
+    Route::post('/modules/{id}/attachments',   [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'store']);
+    Route::delete('/attachments/{id}',         [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'destroy']);
+
     // Certificates (admin)
-    Route::get('/certificates',       [\App\Http\Controllers\Api\CertificateController::class, 'adminIndex']);
-    Route::get('/certificates/stats', [\App\Http\Controllers\Api\CertificateController::class, 'adminStats']);
+    Route::get('/certificates',        [\App\Http\Controllers\Api\CertificateController::class, 'adminIndex']);
+    Route::get('/certificates/stats',  [\App\Http\Controllers\Api\CertificateController::class, 'adminStats']);
+    Route::post('/certificates/issue', [\App\Http\Controllers\Api\CertificateController::class, 'adminIssue']);
 });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
@@ -85,13 +96,68 @@ Route::middleware(['auth:sanctum', 'role:admin', 'tenant', 'throttle:analytics']
 });
 
 Route::prefix('v1/auth')->group(function () {
+    // Email auth (login, register, logout)
+    Route::post('/login', [\App\Http\Controllers\AuthController::class, 'login']);
+    Route::post('/register', [\App\Http\Controllers\AuthController::class, 'register']);
+    Route::post('/logout', [\App\Http\Controllers\AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+    // Password reset
     Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'sendResetLink']);
     Route::post('/reset-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'resetPassword']);
 });
+
+// Google OAuth code exchange (called from frontend callback page)
+Route::post('/auth/google/exchange', [\App\Http\Controllers\AuthController::class, 'exchangeGoogleCode'])
+    ->middleware('throttle:10,1');
 
 Route::middleware(['auth:sanctum', 'role:admin', 'tenant'])->prefix('v1/tenant')->group(function () {
     Route::apiResource('questions', \App\Http\Controllers\Api\QuestionBankController::class);
     Route::post('/quizzes/{id}/sync-questions', [\App\Http\Controllers\Api\QuestionBankController::class, 'syncQuestions']);
 });
+
+// ─── Digital Products: Admin CRUD + secure files + sales ─────────────────────
+Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(function () {
+    Route::get('/digital-products',               [\App\Http\Controllers\Api\DigitalProductController::class, 'index']);
+    Route::post('/digital-products',              [\App\Http\Controllers\Api\DigitalProductController::class, 'store']);
+    Route::get('/digital-products/{product}',     [\App\Http\Controllers\Api\DigitalProductController::class, 'show']);
+    Route::post('/digital-products/{product}',    [\App\Http\Controllers\Api\DigitalProductController::class, 'update']); // multipart
+    Route::delete('/digital-products/{product}',  [\App\Http\Controllers\Api\DigitalProductController::class, 'destroy']);
+    Route::get('/digital-products/{product}/sales', [\App\Http\Controllers\Api\DigitalProductController::class, 'sales']);
+
+    // Private vault file management
+    Route::post('/digital-products/{product}/files', [\App\Http\Controllers\Api\DigitalProductFileController::class, 'store']);
+    Route::delete('/digital-product-files/{file}',   [\App\Http\Controllers\Api\DigitalProductFileController::class, 'destroy']);
+
+    // Course packages (tiered entitlements)
+    Route::get('/courses/{course}/packages',  [\App\Http\Controllers\Api\CoursePackageController::class, 'index']);
+    Route::post('/courses/{course}/packages', [\App\Http\Controllers\Api\CoursePackageController::class, 'store']);
+    Route::put('/course-packages/{package}',  [\App\Http\Controllers\Api\CoursePackageController::class, 'update']);
+    Route::delete('/course-packages/{package}', [\App\Http\Controllers\Api\CoursePackageController::class, 'destroy']);
+});
+
+// ─── Digital Products: Student library + entitlement download request ────────
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+    // Profile avatar (shared: students + admins)
+    Route::post('/profile/avatar', [\App\Http\Controllers\Api\ProfileAvatarController::class, 'update']);
+    Route::delete('/profile/avatar', [\App\Http\Controllers\Api\ProfileAvatarController::class, 'destroy']);
+
+    // Video heartbeat (anti-cheat progress)
+    Route::post('/progress/ping', [\App\Http\Controllers\Api\VideoProgressController::class, 'ping']);
+    // Short-lived token-signed HLS/video URL (Bunny)
+    Route::get('/lessons/{id}/video-token', [\App\Http\Controllers\Api\VideoTokenController::class, 'issue']);
+
+    Route::get('/my-library', [\App\Http\Controllers\Api\MyLibraryController::class, 'index']);
+    Route::get('/my-subscriptions', [\App\Http\Controllers\Api\MySubscriptionsController::class, 'index']);
+    Route::post('/digital-products/{product}/purchase',
+        [\App\Http\Controllers\Api\DigitalPurchaseController::class, 'store']);
+    Route::get('/digital-products/{product}/files/{file}/download',
+        [\App\Http\Controllers\Api\DigitalDownloadController::class, 'requestDownload']);
+});
+
+// ─── Digital Products: signed file serving (NO auth — signature is the proof) ─
+Route::get('/v1/digital-products/files/{file}/serve',
+    [\App\Http\Controllers\Api\DigitalDownloadController::class, 'serve'])
+    ->middleware('signed')
+    ->name('digital-products.files.serve');
 
 

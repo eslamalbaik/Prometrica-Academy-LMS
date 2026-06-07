@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -109,29 +110,87 @@ class AuthController extends Controller
     }
 
     /**
-     * Google OAuth — wire Laravel Socialite when credentials are ready.
-     * @see https://laravel.com/docs/socialite
+     * Redirect to Google OAuth consent screen.
+     * Google sends the user back to GOOGLE_REDIRECT_URI (frontend callback page).
      */
     public function redirectToGoogle(Request $request)
     {
         $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
-        $returnTo = $request->query('return_to', $landingUrl . '/student/dashboard');
 
         if (! config('services.google.client_id') || ! config('services.google.client_secret')) {
-            return redirect($landingUrl . '/login?error=google_not_configured&to=' . urlencode($returnTo));
-        }
-
-        return redirect($landingUrl . '/login?error=google_pending&to=' . urlencode($returnTo));
-    }
-
-    public function handleGoogleCallback(Request $request)
-    {
-        $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
-
-        if (! config('services.google.client_id')) {
             return redirect($landingUrl . '/login?error=google_not_configured');
         }
 
-        return redirect($landingUrl . '/login?error=google_callback_pending');
+        $returnTo = $request->query('return_to');
+
+        // Store return_to in session so callback page can forward it
+        session(['google_return_to' => $returnTo]);
+
+        return Socialite::driver('google')
+            ->stateless()
+            ->redirect();
+    }
+
+    /**
+     * POST /api/auth/google/exchange
+     * Frontend callback page posts the OAuth code here.
+     * We exchange it for a Socialite user and return a Sanctum token.
+     */
+    public function exchangeGoogleCode(Request $request)
+    {
+        $request->validate(['code' => 'required|string']);
+
+        $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
+
+        try {
+            $driver     = Socialite::driver('google')->stateless();
+            $tokenData  = $driver->getAccessTokenResponse($request->input('code'));
+            $googleUser = $driver->userFromToken($tokenData['access_token']);
+        } catch (\Exception $e) {
+            Log::warning('Google OAuth exchange failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Google authentication failed. Please try again.'], 401);
+        }
+
+        if (empty($googleUser->getEmail())) {
+            return response()->json(['message' => 'Could not retrieve email from Google account.'], 422);
+        }
+
+        $email = strtolower(trim($googleUser->getEmail()));
+
+        // Find existing user or create a new student account
+        $user = \App\Models\User::withTrashed()->where('email', $email)->first();
+
+        if ($user && $user->trashed()) {
+            return response()->json(['message' => 'This account has been deactivated.'], 403);
+        }
+
+        if (! $user) {
+            $user = \App\Models\User::create([
+                'name'     => $googleUser->getName() ?: $email,
+                'email'    => $email,
+                'password' => bcrypt(\Illuminate\Support\Str::random(32)), // random unusable password
+                'role'     => 'student',
+            ]);
+            Log::info("New Google student registered: {$email}");
+        }
+
+        $token = $user->createToken('google_oauth')->plainTextToken;
+
+        $redirectUrl = $user->role === 'admin'
+            ? rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/') . '/dashboards/lms'
+            : $landingUrl . '/student/dashboard';
+
+        return response()->json([
+            'success'      => true,
+            'token'        => $token,
+            'redirect_url' => $redirectUrl,
+            'user'         => [
+                'id'       => $user->id,
+                'name'     => $user->name,
+                'fullName' => $user->name,
+                'role'     => $user->role ?? 'student',
+                'email'    => $user->email,
+            ],
+        ]);
     }
 }

@@ -29,6 +29,11 @@ class Module extends Model
         return $this->hasMany(Quiz::class, 'course_module_id')->orderBy('order');
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(ModuleAttachment::class)->orderBy('created_at');
+    }
+
     public function getItemsAttribute()
     {
         $lessons = $this->lessons->map(function ($lesson) {

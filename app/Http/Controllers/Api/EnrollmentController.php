@@ -27,7 +27,7 @@ class EnrollmentController extends Controller
 
         // Check paid vs free logic
         $price = $course->discount_price ?? $course->price;
-        if (!$course->is_free && $price > 0) {
+        if (!$course->is_free && $price > 0 && !$request->input('payment_confirmed')) {
             return response()->json([
                 'requires_payment' => true,
                 'message' => 'This course requires payment to enroll.'
@@ -35,14 +35,22 @@ class EnrollmentController extends Controller
         }
 
         // Enroll the user
+        // Compute the access window: lifetime if access_days is null.
+        $expiresAt = $course->access_days
+            ? now()->addDays($course->access_days)
+            : null;
+
         Enrollment::create([
-            'user_id' => $user->id,
-            'course_id' => $course->id,
-            'progress' => 0
+            'user_id'     => $user->id,
+            'course_id'   => $course->id,
+            'progress'    => 0,
+            'enrolled_at' => now(),
+            'expires_at'  => $expiresAt,
         ]);
 
         return response()->json([
             'message' => 'Successfully enrolled in the course.',
+            'expires_at' => $expiresAt,
             'redirect_url' => '/student/dashboard'
         ], 200);
     }

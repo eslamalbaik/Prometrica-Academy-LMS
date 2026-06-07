@@ -50,9 +50,8 @@ class DatabaseSeeder extends Seeder
 
         // Demo Lesson
         \App\Models\Lesson::create([
-            'module_id' => $module->id,
+            'course_module_id' => $module->id,
             'title' => 'Absorption and Distribution',
-            'duration' => 15,
             'order' => 1,
         ]);
 

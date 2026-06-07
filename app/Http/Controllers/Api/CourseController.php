@@ -36,6 +36,7 @@ class CourseController extends Controller
             'is_free' => 'nullable|boolean',
             'price' => 'nullable|numeric|min:0',
             'discount_price' => 'nullable|numeric|min:0',
+            'access_days' => 'nullable|integer|min:1',
             'include_in_subscription' => 'nullable|boolean',
             'status' => 'nullable|string'
         ]);
@@ -103,6 +104,7 @@ class CourseController extends Controller
             'language'         => 'sometimes|nullable|string',
             'price'            => 'sometimes|nullable|numeric|min:0',
             'discount_price'   => 'sometimes|nullable|numeric|min:0',
+            'access_days'      => 'sometimes|nullable|integer|min:1',
             'is_free'          => 'sometimes|boolean',
             'status'           => 'sometimes|string',
             'is_published'     => 'sometimes|boolean',
