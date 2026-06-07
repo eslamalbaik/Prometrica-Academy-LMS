@@ -1,3 +1,12 @@
+@php
+    // Embed the real system logo inline (base64) so it always renders, even in
+    // clients that block remote images or can't reach a localhost URL.
+    $logoData = null;
+    $logoPath = public_path('logo.png');
+    if (is_file($logoPath)) {
+        $logoData = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -6,278 +15,125 @@
   <title>Reset Your Password – Prometrica Academy</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: #f1f5f9;
+      background-color: #eef2f7;
       color: #334155;
       -webkit-font-smoothing: antialiased;
     }
+    .wrapper { max-width: 600px; margin: 0 auto; padding: 32px 16px 40px; }
 
-    .wrapper {
-      max-width: 620px;
-      margin: 40px auto;
-      padding: 0 16px 40px;
-    }
+    .brand { text-align: center; padding: 8px 0 24px; }
+    .brand img { height: 44px; width: auto; }
+    .brand-fallback { font-size: 20px; font-weight: 800; color: #0f3460; letter-spacing: -0.3px; }
 
-    /* ── Header / Logo ── */
-    .header {
-      text-align: center;
-      padding: 32px 0 28px;
-    }
-    .logo-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-    }
-    .logo-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: 900;
-      color: #ffffff;
-      letter-spacing: -1px;
-    }
-    .logo-name {
-      font-size: 20px;
-      font-weight: 800;
-      color: #1e293b;
-      letter-spacing: -0.3px;
-    }
-    .logo-name span {
-      color: #6366f1;
-    }
-
-    /* ── Card ── */
     .card {
-      background: #ffffff;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      background: #ffffff; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 6px 28px rgba(15, 52, 96, 0.10); border: 1px solid #e8edf3;
     }
 
-    /* ── Hero banner ── */
     .hero {
-      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%);
-      padding: 44px 40px 40px;
-      text-align: center;
-      position: relative;
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 60%, #1a1a2e 100%);
+      padding: 40px 40px 34px; text-align: center;
     }
-    .hero-icon {
-      width: 72px;
-      height: 72px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.12);
-      border: 2px solid rgba(255,255,255,0.2);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-      font-size: 32px;
+    .hero-badge {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18);
+      display: inline-block; line-height: 64px; font-size: 28px; margin-bottom: 18px;
     }
-    .hero-title {
-      font-size: 26px;
-      font-weight: 800;
-      color: #ffffff;
-      margin-bottom: 10px;
-      letter-spacing: -0.3px;
-    }
-    .hero-subtitle {
-      font-size: 14px;
-      color: rgba(255,255,255,0.65);
-      line-height: 1.6;
-    }
+    .hero h1 { font-size: 23px; font-weight: 800; color: #ffffff; margin-bottom: 8px; letter-spacing: -0.3px; }
+    .hero p  { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.6; }
 
-    /* ── Body ── */
-    .body {
-      padding: 40px 40px 36px;
-    }
+    .body { padding: 36px 40px 30px; }
+    .greeting { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 14px; }
+    .para { font-size: 14.5px; color: #475569; line-height: 1.75; margin-bottom: 16px; }
 
-    .greeting {
-      font-size: 16px;
-      font-weight: 600;
-      color: #1e293b;
-      margin-bottom: 14px;
-    }
-
-    .paragraph {
-      font-size: 14px;
-      color: #64748b;
-      line-height: 1.75;
-      margin-bottom: 14px;
-    }
-
-    /* ── CTA Button ── */
-    .btn-wrap {
-      text-align: center;
-      margin: 36px 0;
-    }
+    .btn-wrap { text-align: center; margin: 30px 0 26px; }
     .btn {
-      display: inline-block;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #ffffff !important;
-      text-decoration: none;
-      font-size: 15px;
-      font-weight: 700;
-      padding: 15px 40px;
-      border-radius: 12px;
-      letter-spacing: 0.2px;
-      box-shadow: 0 6px 20px rgba(99,102,241,0.35);
+      display: inline-block; background: linear-gradient(135deg, #0f3460, #1f6feb);
+      color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 700;
+      padding: 15px 44px; border-radius: 10px; letter-spacing: 0.2px;
+      box-shadow: 0 8px 20px rgba(15, 52, 96, 0.28);
     }
 
-    /* ── Expiry notice ── */
     .notice {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      background: #fef9ec;
-      border: 1px solid #fde68a;
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 28px;
+      background: #fff8e6; border: 1px solid #fde8a8; border-radius: 10px;
+      padding: 14px 16px; margin-bottom: 24px; font-size: 13px; color: #8a6100; line-height: 1.6;
     }
-    .notice-icon { font-size: 18px; line-height: 1; flex-shrink: 0; }
-    .notice-text { font-size: 13px; color: #92400e; line-height: 1.6; }
-    .notice-text strong { color: #78350f; }
+    .notice strong { color: #6b4a00; }
 
-    /* ── Fallback link ── */
+    .divider { border: none; border-top: 1px solid #eef2f7; margin: 24px 0; }
+    .muted { font-size: 13px; color: #94a3b8; line-height: 1.65; }
+
     .fallback {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 10px;
+      background: #f7f9fc; border: 1px solid #e8edf3; border-radius: 10px; padding: 14px 16px; margin-top: 18px;
     }
-    .fallback p {
-      font-size: 12px;
-      color: #94a3b8;
-      margin-bottom: 8px;
-    }
-    .fallback a {
-      font-size: 11px;
-      color: #6366f1;
-      word-break: break-all;
-    }
+    .fallback p { font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+    .fallback a { font-size: 11.5px; color: #1f6feb; word-break: break-all; }
 
-    /* ── Divider ── */
-    .divider {
-      border: none;
-      border-top: 1px solid #f1f5f9;
-      margin: 28px 0;
-    }
-
-    .ignore-note {
-      font-size: 13px;
-      color: #94a3b8;
-      line-height: 1.6;
-    }
-
-    /* ── Footer ── */
-    .footer {
-      text-align: center;
-      padding: 24px 40px 0;
-    }
-    .footer-links {
-      margin-bottom: 12px;
-    }
-    .footer-links a {
-      font-size: 12px;
-      color: #6366f1;
-      text-decoration: none;
-      margin: 0 10px;
-    }
-    .footer-copy {
-      font-size: 12px;
-      color: #94a3b8;
-      line-height: 1.6;
-    }
+    .footer { text-align: center; padding: 22px 24px 0; }
+    .footer p { font-size: 12px; color: #94a3b8; line-height: 1.7; }
+    .footer .name { color: #0f3460; font-weight: 700; }
 
     @media (max-width: 480px) {
-      .hero, .body, .footer { padding-left: 24px; padding-right: 24px; }
-      .hero-title { font-size: 22px; }
-      .btn { padding: 14px 28px; }
+      .hero, .body { padding-left: 24px; padding-right: 24px; }
+      .hero h1 { font-size: 20px; }
+      .btn { padding: 14px 30px; }
     }
   </style>
 </head>
 <body>
 <div class="wrapper">
 
-  <!-- Logo Header -->
-  <div class="header">
-    <span class="logo-wrap">
-      <span class="logo-icon">P</span>
-      <span class="logo-name">Prometrica <span>Academy</span></span>
-    </span>
+  <!-- Brand logo (real system logo embedded inline, with text fallback) -->
+  <div class="brand">
+    @if ($logoData)
+      <img src="{{ $logoData }}" alt="Prometrica Academy" />
+    @else
+      <span class="brand-fallback">Prometrica Academy</span>
+    @endif
   </div>
 
-  <!-- Main Card -->
   <div class="card">
-
-    <!-- Hero -->
     <div class="hero">
-      <div class="hero-icon">🔐</div>
-      <div class="hero-title">Password Reset Request</div>
-      <div class="hero-subtitle">We received a request to reset your Prometrica Academy account password.</div>
+      <span class="hero-badge">🔐</span>
+      <h1>Password Reset Request</h1>
+      <p>We received a request to reset the password for your<br />Prometrica Academy account.</p>
     </div>
 
-    <!-- Body -->
     <div class="body">
       <p class="greeting">Hello,</p>
-
-      <p class="paragraph">
-        Someone requested a password reset for the account associated with this email address.
-        If this was you, click the button below to choose a new password.
+      <p class="para">
+        Someone requested a password reset for the account linked to this email address.
+        If this was you, click the button below to securely choose a new password.
       </p>
 
-      <!-- CTA -->
       <div class="btn-wrap">
-        <a href="{{ $resetUrl }}" class="btn" target="_blank">
-          Reset My Password
-        </a>
+        <a href="{!! $resetUrl !!}" class="btn" target="_blank" rel="noopener">Reset My Password</a>
       </div>
 
-      <!-- Expiry notice -->
       <div class="notice">
-        <span class="notice-icon">⏱</span>
-        <span class="notice-text">
-          <strong>This link expires in 60 minutes.</strong><br />
-          After that, you'll need to request a new password reset link from the login page.
-        </span>
+        ⏱ &nbsp;<strong>This link expires in 60 minutes.</strong><br />
+        After that you'll need to request a new reset link from the login page.
       </div>
 
-      <hr class="divider" />
-
-      <p class="ignore-note">
-        If you did not request a password reset, you can safely ignore this email —
-        your password will not be changed and your account remains secure.
+      <p class="muted">
+        If you didn't request a password reset, you can safely ignore this email —
+        your password won't be changed and your account stays secure.
       </p>
 
       <hr class="divider" />
 
-      <!-- Fallback URL -->
       <div class="fallback">
-        <p>If the button above doesn't work, copy and paste this URL into your browser:</p>
-        <a href="{{ $resetUrl }}" target="_blank">{{ $resetUrl }}</a>
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <a href="{!! $resetUrl !!}" target="_blank" rel="noopener">{{ $resetUrl }}</a>
       </div>
     </div>
-
   </div>
 
-  <!-- Footer -->
   <div class="footer">
-    <div class="footer-links">
-      <a href="#">Help Center</a>
-      <a href="#">Privacy Policy</a>
-      <a href="#">Terms of Service</a>
-    </div>
-    <p class="footer-copy">
-      © {{ date('Y') }} Prometrica Academy. All rights reserved.<br />
+    <p>
+      © {{ date('Y') }} <span class="name">Prometrica Academy</span> — All rights reserved.<br />
       Professional Pharmacy Education Platform.
     </p>
   </div>

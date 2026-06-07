@@ -12,7 +12,20 @@ class CourseController extends Controller
      */
     public function index()
     {
-        $courses = \App\Models\Course::with('instructor')->withCount('students')->orderBy('created_at', 'desc')->get();
+        // Eager-load exactly what the `total_duration`, `lessons_count` and
+        // `average_rating` appended attributes need, so the list renders with a
+        // few queries instead of ~3 per course (N+1).
+        $courses = \App\Models\Course::query()
+            ->with([
+                'instructor:id,name',
+                'modules:id,course_id,order',
+                'modules.lessons:id,course_module_id',
+                'reviews:id,course_id,rating,is_approved',
+            ])
+            ->withCount('students')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         return response()->json($courses);
     }
 

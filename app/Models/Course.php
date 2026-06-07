@@ -59,6 +59,12 @@ class Course extends Model
 
     public function getAverageRatingAttribute()
     {
-        return $this->reviews()->where('is_approved', true)->avg('rating') ?? 0;
+        // Use the eager-loaded relation when available to avoid an N+1 query
+        // per course in list endpoints; fall back to a single aggregate query.
+        if ($this->relationLoaded('reviews')) {
+            return round($this->reviews->where('is_approved', true)->avg('rating') ?? 0, 1);
+        }
+
+        return round($this->reviews()->where('is_approved', true)->avg('rating') ?? 0, 1);
     }
 }
