@@ -157,7 +157,7 @@ class GenerateCertificateJob implements ShouldQueue
                 Log::info('Browsershot PDF rendering succeeded', ['trace_id' => $this->traceId]);
 
                 // Upload to S3/Private storage first (Two-Phase Commit Phase 1)
-                $disk = env('FILESYSTEM_DISK', 'local');
+                $disk = config('filesystems.default', 'local');
                 $storagePath = "certificates/{$certificate->ulid}.pdf";
 
                 $uploaded = Storage::disk($disk)->put($storagePath, $pdfContent);

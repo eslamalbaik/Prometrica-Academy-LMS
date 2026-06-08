@@ -54,7 +54,7 @@ class CertificateController extends Controller
         $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : ($request->header('X-Tenant-ID') ?: 1);
 
         if ($certificate) {
-            $disk = env('FILESYSTEM_DISK', 'local');
+            $disk = config('filesystems.default', 'local');
             $path = "certificates/{$certificate->ulid}.pdf";
             if (!Storage::disk($disk)->exists($path)) {
                 GenerateCertificateJob::dispatch($user->id, $id, $tenantId);
@@ -104,7 +104,7 @@ class CertificateController extends Controller
         // Ensure course title is loaded
         $certificate->loadMissing('course:id,title');
 
-        $disk = env('FILESYSTEM_DISK', 'local');
+        $disk = config('filesystems.default', 'local');
         $path = "certificates/{$certificate->ulid}.pdf";
 
         if (!Storage::disk($disk)->exists($path)) {
@@ -208,7 +208,7 @@ class CertificateController extends Controller
         $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
 
         if ($certificate) {
-            $disk = env('FILESYSTEM_DISK', 'local');
+            $disk = config('filesystems.default', 'local');
             $path = "certificates/{$certificate->ulid}.pdf";
             if (!Storage::disk($disk)->exists($path)) {
                 GenerateCertificateJob::dispatch($userId, $courseId, $tenantId);
@@ -240,7 +240,7 @@ class CertificateController extends Controller
             ->where('user_id', $request->user()->id)
             ->firstOrFail();
 
-        $disk = env('FILESYSTEM_DISK', 'local');
+        $disk = config('filesystems.default', 'local');
         $path = "certificates/{$certificate->ulid}.pdf";
 
         if (Storage::disk($disk)->exists($path)) {
@@ -263,7 +263,7 @@ class CertificateController extends Controller
     {
         $certificate = Certificate::where('ulid', $ulid)->firstOrFail();
 
-        $disk = env('FILESYSTEM_DISK', 'local');
+        $disk = config('filesystems.default', 'local');
         $path = "certificates/{$certificate->ulid}.pdf";
 
         // Delete the old stored PDF so the next download regenerates it fresh
