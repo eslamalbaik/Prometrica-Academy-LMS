@@ -127,13 +127,21 @@ class GenerateCertificateJob implements ShouldQueue
                 Log::info('Browsershot PDF rendering starting', ['trace_id' => $this->traceId]);
 
                 // Detect Chromium path (snap on Ubuntu 24.04 or standard)
+                // Prefer google-chrome (non-snap) over chromium-browser (snap)
                 $chromiumPath = config('app.chromium_path')
-                    ?: (file_exists('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser'
+                    ?: (file_exists('/usr/bin/google-chrome') ? '/usr/bin/google-chrome'
+                    : (file_exists('/usr/bin/google-chrome-stable') ? '/usr/bin/google-chrome-stable'
                     : (file_exists('/usr/bin/chromium') ? '/usr/bin/chromium'
-                    : (file_exists('/usr/bin/google-chrome') ? '/usr/bin/google-chrome'
-                    : null)));
+                    : (file_exists('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser'
+                    : null))));
 
-                $browsershot = Browsershot::html($html)
+                // Write HTML to temp file and set world-readable permissions
+                $htmlFile = $tempPath . '/cert_' . uniqid() . '.html';
+                file_put_contents($htmlFile, $html);
+                chmod($htmlFile, 0644);
+                chmod($tempPath, 0755);
+
+                $browsershot = Browsershot::url('file://' . $htmlFile)
                     ->setCustomTempPath($tempPath)
                     ->timeout(30)
                     ->noSandbox()
@@ -141,8 +149,8 @@ class GenerateCertificateJob implements ShouldQueue
                         'disable-dev-shm-usage',
                         'disable-gpu',
                         'disable-software-rasterizer',
-                        'headless',
-                        'run-all-compositor-stages-before-draw',
+                        'headless=new',
+                        'allow-file-access-from-files',
                         'user-data-dir' => $chromeProfile,
                     ])
                     ->showBackground()
@@ -153,6 +161,9 @@ class GenerateCertificateJob implements ShouldQueue
                 }
 
                 $pdfContent = $browsershot->pdf();
+
+                // Cleanup temp HTML file
+                @unlink($htmlFile);
 
                 Log::info('Browsershot PDF rendering succeeded', ['trace_id' => $this->traceId]);
 
