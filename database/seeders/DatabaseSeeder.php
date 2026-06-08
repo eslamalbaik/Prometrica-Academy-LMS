@@ -149,7 +149,7 @@ class DatabaseSeeder extends Seeder
         }
 
         // ─── 4. QUIZZES + QUESTIONS + OPTIONS ────────────────────────────────────
-        $tenantId = 1;
+        $tenantId = 'default';
 
         $quizData = [
             [
