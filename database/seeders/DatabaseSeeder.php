@@ -3,12 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
 
     /**
      * Seed the application's database.
@@ -16,20 +14,26 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Admin User
-        $admin = User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@demo.com',
-            'password' => bcrypt('admin'),
-            'role' => 'admin',
-        ]);
+        $admin = User::firstOrCreate(
+            ['email' => 'admin@demo.com'],
+            [
+                'name'     => 'Admin User',
+                'password' => bcrypt('admin'),
+                'role'     => 'admin',
+                'email_verified_at' => now(),
+            ]
+        );
 
         // Student User
-        $student = User::factory()->create([
-            'name' => 'Student User',
-            'email' => 'client@demo.com',
-            'password' => bcrypt('client'),
-            'role' => 'student',
-        ]);
+        $student = User::firstOrCreate(
+            ['email' => 'client@demo.com'],
+            [
+                'name'     => 'Student User',
+                'password' => bcrypt('client'),
+                'role'     => 'student',
+                'email_verified_at' => now(),
+            ]
+        );
 
         // Demo Course
         $course = \App\Models\Course::create([
