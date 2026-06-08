@@ -135,13 +135,7 @@ class GenerateCertificateJob implements ShouldQueue
                     : (file_exists('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser'
                     : null))));
 
-                // Write HTML to temp file and set world-readable permissions
-                $htmlFile = $tempPath . '/cert_' . uniqid() . '.html';
-                file_put_contents($htmlFile, $html);
-                chmod($htmlFile, 0644);
-                chmod($tempPath, 0755);
-
-                $browsershot = Browsershot::url('file://' . $htmlFile)
+                $browsershot = Browsershot::html($html)
                     ->setCustomTempPath($tempPath)
                     ->timeout(30)
                     ->noSandbox()
@@ -149,8 +143,6 @@ class GenerateCertificateJob implements ShouldQueue
                         'disable-dev-shm-usage',
                         'disable-gpu',
                         'disable-software-rasterizer',
-                        'headless=new',
-                        'allow-file-access-from-files',
                         'user-data-dir' => $chromeProfile,
                     ])
                     ->showBackground()
@@ -161,9 +153,6 @@ class GenerateCertificateJob implements ShouldQueue
                 }
 
                 $pdfContent = $browsershot->pdf();
-
-                // Cleanup temp HTML file
-                @unlink($htmlFile);
 
                 Log::info('Browsershot PDF rendering succeeded', ['trace_id' => $this->traceId]);
 
