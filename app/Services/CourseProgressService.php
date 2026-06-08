@@ -85,7 +85,7 @@ class CourseProgressService
         // نلتقط أي استثناء ونسجّله فقط — الشهادة ستُولَّد لاحقاً عند التحميل.
         if ($stats['progress_percentage'] === 100) {
             try {
-                $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
+                $tenantId = \Illuminate\Support\Facades\Context::get('tenant_id') ?: 'default';
                 GenerateCertificateJob::dispatch($user->id, $courseId, $tenantId);
             } catch (\Throwable $e) {
                 \Illuminate\Support\Facades\Log::error('Auto certificate generation failed on course completion', [

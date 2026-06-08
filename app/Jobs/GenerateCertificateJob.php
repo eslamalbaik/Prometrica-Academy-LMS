@@ -129,21 +129,33 @@ class GenerateCertificateJob implements ShouldQueue
                 // Generate PDF using optimized Browsershot config
                 Log::info('Browsershot PDF rendering starting', ['trace_id' => $this->traceId]);
 
-                $pdfContent = Browsershot::html($html)
+                // Detect Chromium path (snap on Ubuntu 24.04 or standard)
+                $chromiumPath = config('app.chromium_path')
+                    ?: (file_exists('/usr/bin/chromium-browser') ? '/usr/bin/chromium-browser'
+                    : (file_exists('/usr/bin/chromium') ? '/usr/bin/chromium'
+                    : (file_exists('/usr/bin/google-chrome') ? '/usr/bin/google-chrome'
+                    : null)));
+
+                $browsershot = Browsershot::html($html)
                     ->setCustomTempPath($tempPath)
-                    ->timeout(15) // Enforce strict 15s max rendering time
-                    ->noSandbox() // Enforce `--no-sandbox`
-                    // Browsershot prefixes each flag with "--" automatically, so pass
-                    // the bare flag name (no leading dashes) to avoid "----flag".
+                    ->timeout(30)
+                    ->noSandbox()
                     ->addChromiumArguments([
-                        'disable-dev-shm-usage', // Enforce critical scaling flags
+                        'disable-dev-shm-usage',
                         'disable-gpu',
                         'disable-software-rasterizer',
+                        'headless',
+                        'run-all-compositor-stages-before-draw',
                         'user-data-dir' => $chromeProfile,
                     ])
                     ->showBackground()
-                    ->paperSize(1191, 1685, 'px') // A4 Portrait — matches template image
-                    ->pdf();
+                    ->paperSize(1191, 1685, 'px');
+
+                if ($chromiumPath) {
+                    $browsershot->setChromePath($chromiumPath);
+                }
+
+                $pdfContent = $browsershot->pdf();
 
                 Log::info('Browsershot PDF rendering succeeded', ['trace_id' => $this->traceId]);
 
