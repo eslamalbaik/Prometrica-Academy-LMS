@@ -8,8 +8,8 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-use App\Http\Controllers\API\LandingCourseController;
-use App\Http\Controllers\API\StudentLessonController;
+use App\Http\Controllers\Api\LandingCourseController;
+use App\Http\Controllers\Api\StudentLessonController;
 
 Route::get('/landing/courses', [LandingCourseController::class, 'index']);
 Route::get('/landing/courses/{id}', [LandingCourseController::class, 'show']);
@@ -80,13 +80,13 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/enrollments',[\App\Http\Controllers\Api\UserController::class, 'adminEnroll']);
 
     // Course content builders
-    Route::post('/modules',         [\App\Http\Controllers\API\CourseModuleController::class, 'store']);
-    Route::put('/modules/{id}',     [\App\Http\Controllers\API\CourseModuleController::class, 'update']);
-    Route::delete('/modules/{id}',  [\App\Http\Controllers\API\CourseModuleController::class, 'destroy']);
+    Route::post('/modules',         [\App\Http\Controllers\Api\CourseModuleController::class, 'store']);
+    Route::put('/modules/{id}',     [\App\Http\Controllers\Api\CourseModuleController::class, 'update']);
+    Route::delete('/modules/{id}',  [\App\Http\Controllers\Api\CourseModuleController::class, 'destroy']);
 
-    Route::post('/lessons',         [\App\Http\Controllers\API\LessonController::class, 'store']);
-    Route::put('/lessons/{id}',     [\App\Http\Controllers\API\LessonController::class, 'update']);
-    Route::delete('/lessons/{id}',  [\App\Http\Controllers\API\LessonController::class, 'destroy']);
+    Route::post('/lessons',         [\App\Http\Controllers\Api\LessonController::class, 'store']);
+    Route::put('/lessons/{id}',     [\App\Http\Controllers\Api\LessonController::class, 'update']);
+    Route::delete('/lessons/{id}',  [\App\Http\Controllers\Api\LessonController::class, 'destroy']);
 
     // Module PDF attachments
     Route::get('/modules/{id}/attachments',    [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'index']);
