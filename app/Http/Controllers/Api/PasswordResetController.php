@@ -38,7 +38,7 @@ class PasswordResetController extends Controller
         );
 
         // Reset link goes to the student landing page
-        $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
+        $landingUrl = rtrim(config('app.landing_url', 'http://localhost:3000'), '/');
         $resetUrl = $landingUrl . '/reset-password?token=' . $token . '&email=' . urlencode($email);
 
         // Queue the reset password email to keep responses fast and non-blocking
