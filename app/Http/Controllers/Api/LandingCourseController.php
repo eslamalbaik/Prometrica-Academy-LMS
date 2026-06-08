@@ -9,7 +9,7 @@ use App\Models\Course;
 
 class LandingCourseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $courses = Course::where('is_published', true)
             ->with([
@@ -23,6 +23,23 @@ class LandingCourseController extends Controller
                     $query->with('user:id,name')->where('is_approved', true);
                 }
             ])->get();
+
+        // Attach is_enrolled flag for authenticated users
+        $user = auth('sanctum')->user();
+        if ($user) {
+            $enrolledIds = \App\Models\Enrollment::where('user_id', $user->id)
+                ->pluck('course_id')
+                ->flip()
+                ->all();
+
+            $courses = $courses->map(function ($course) use ($user, $enrolledIds) {
+                $data = $course->toArray();
+                $data['is_enrolled'] = $user->role === 'admin'
+                    || $user->id === $course->instructor_id
+                    || isset($enrolledIds[$course->id]);
+                return $data;
+            });
+        }
 
         return response()->json($courses);
     }
