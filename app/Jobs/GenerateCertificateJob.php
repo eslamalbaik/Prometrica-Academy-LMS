@@ -39,7 +39,7 @@ class GenerateCertificateJob implements ShouldQueue
     public function __construct(
         protected int $userId,
         protected int $courseId,
-        protected int $tenantId,
+        protected int|string $tenantId,
         protected ?string $traceId = null
     ) {
         $this->traceId = $traceId ?? (string) \Illuminate\Support\Str::uuid();
