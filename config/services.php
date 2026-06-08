@@ -35,6 +35,17 @@ return [
         ],
     ],
 
+    'bunny' => [
+        'pull_zone'         => env('BUNNY_PULL_ZONE'),
+        'token_key'         => env('BUNNY_TOKEN_SECURITY_KEY'),
+        'stream_library_id' => env('BUNNY_STREAM_LIBRARY_ID'),
+        'stream_api_key'    => env('BUNNY_STREAM_API_KEY'),
+        // Storage Zone (raw file storage + CDN delivery)
+        'storage_zone'      => env('BUNNY_STORAGE_ZONE'),
+        'storage_api_key'   => env('BUNNY_STORAGE_API_KEY'),
+        'cdn_url'           => env('BUNNY_CDN_URL'),
+    ],
+
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

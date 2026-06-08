@@ -109,7 +109,7 @@
       </p>
 
       <div class="btn-wrap">
-        <a href="{!! $resetUrl !!}" class="btn" target="_blank" rel="noopener">Reset My Password</a>
+        <a href="{{ $resetUrl }}" class="btn" target="_blank" rel="noopener">Reset My Password</a>
       </div>
 
       <div class="notice">
@@ -126,7 +126,7 @@
 
       <div class="fallback">
         <p>If the button doesn't work, copy and paste this link into your browser:</p>
-        <a href="{!! $resetUrl !!}" target="_blank" rel="noopener">{{ $resetUrl }}</a>
+        <a href="{{ $resetUrl }}" target="_blank" rel="noopener">{{ $resetUrl }}</a>
       </div>
     </div>
   </div>

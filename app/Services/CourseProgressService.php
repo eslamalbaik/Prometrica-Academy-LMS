@@ -8,6 +8,8 @@ use App\Models\Lesson;
 use App\Models\Quiz;
 use App\Models\User;
 
+use App\Jobs\GenerateCertificateJob;
+
 class CourseProgressService
 {
     /**
@@ -78,10 +80,20 @@ class CourseProgressService
         }
 
         // إصدار شهادة تلقائياً عند اكتمال الكورس 100%
+        // ملاحظة: على اتصال طابور "sync" يُنفَّذ التوليد بشكل متزامن، وقد يفشل
+        // (مثلاً تعذّر تشغيل Chrome). يجب ألا يكسر ذلك تسجيل تقدّم الطالب، لذا
+        // نلتقط أي استثناء ونسجّله فقط — الشهادة ستُولَّد لاحقاً عند التحميل.
         if ($stats['progress_percentage'] === 100) {
-            Certificate::firstOrCreate(
-                ['user_id' => $user->id, 'course_id' => $courseId]
-            );
+            try {
+                $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
+                GenerateCertificateJob::dispatch($user->id, $courseId, $tenantId);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Auto certificate generation failed on course completion', [
+                    'user_id'   => $user->id,
+                    'course_id' => $courseId,
+                    'error'     => $e->getMessage(),
+                ]);
+            }
         }
 
         return $stats['progress_percentage'];

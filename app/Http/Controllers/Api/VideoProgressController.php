@@ -60,6 +60,11 @@ class VideoProgressController extends Controller
 
         $duration = (float) ($data['duration'] ?? 0);
 
+        // Auto-populate the lesson's duration if it's currently null or 0.
+        if (($lesson->duration_seconds === null || $lesson->duration_seconds === 0) && $duration > 0) {
+            $lesson->update(['duration_seconds' => (int) ceil($duration)]);
+        }
+
         // Credit a fixed step, capped so watched_seconds can never exceed duration.
         $watched = (int) $pivot->watched_seconds + self::STEP;
         if ($duration > 0) {

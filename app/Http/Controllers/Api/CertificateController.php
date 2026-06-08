@@ -7,9 +7,10 @@ use App\Models\Certificate;
 use App\Models\Course;
 use App\Models\User;
 use App\Services\CourseProgressService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Jobs\GenerateCertificateJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class CertificateController extends Controller
 {
@@ -44,50 +45,137 @@ class CertificateController extends Controller
             ], 422);
         }
 
-        $certificate = Certificate::firstOrCreate(
-            ['user_id' => $user->id, 'course_id' => $id]
-        );
+        // Check if certificate already exists
+        $certificate = Certificate::where('user_id', $user->id)
+            ->where('course_id', $id)
+            ->first();
 
-        $certificate->load('course:id,title,thumbnail,category');
+        // Determine tenant_id (default to 1 or header value if multi-tenant)
+        $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : ($request->header('X-Tenant-ID') ?: 1);
+
+        if ($certificate) {
+            $disk = env('FILESYSTEM_DISK', 'local');
+            $path = "certificates/{$certificate->ulid}.pdf";
+            if (!Storage::disk($disk)->exists($path)) {
+                GenerateCertificateJob::dispatch($user->id, $id, $tenantId);
+                return response()->json([
+                    'message' => 'Certificate file is missing. Regeneration started. Please check back in a few seconds.',
+                    'status'  => 'pending'
+                ], 202);
+            }
+
+            return response()->json([
+                'message'     => 'Certificate already issued.',
+                'certificate' => $certificate,
+            ], 200);
+        }
+
+        // Dispatch asynchronous generation job
+        GenerateCertificateJob::dispatch($user->id, $id, $tenantId);
 
         return response()->json([
-            'message'     => $certificate->wasRecentlyCreated ? 'Certificate issued.' : 'Certificate already issued.',
-            'certificate' => $certificate,
-        ], $certificate->wasRecentlyCreated ? 201 : 200);
+            'message' => 'Certificate generation started. Please check back in a few seconds.',
+            'status'  => 'pending'
+        ], 202);
     }
 
-    /** GET /certificates/{uuid}/download  (public — returns PDF) */
-    public function download(string $uuid)
+    /** GET /api/v1/certificates/{certificate}/download */
+    public function download(Request $request, Certificate $certificate): JsonResponse
     {
-        $certificate = Certificate::where('uuid', $uuid)
-            ->with(['user:id,name', 'course:id,title,category'])
-            ->firstOrFail();
+        // 3_authorization_instead_of_404: Authorize via Gate/Policy
+        \Illuminate\Support\Facades\Gate::authorize('download', $certificate);
 
-        $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
+        // Return a temporary signed URL valid for 5 minutes
+        $downloadUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'certificate.signed_download',
+            now()->addMinutes(5),
+            ['certificate' => $certificate->ulid]
+        );
 
-        $pdf = Pdf::loadView('certificates.certificate', [
-            'student'    => $certificate->user->name,
-            'course'     => $certificate->course->title,
-            'category'   => $certificate->course->category ?? '',
-            'issued_at'  => $certificate->issued_at->format('F j, Y'),
-            'uuid'       => strtoupper($certificate->uuid),
-            'verify_url' => $landingUrl . '/verify/' . $certificate->uuid,
-        ])->setPaper([0, 0, 841.89, 595.28], 'landscape'); // A4 landscape
+        return response()->json([
+            'download_url' => $downloadUrl,
+            'expires_in'   => 300,
+        ]);
+    }
+
+    /** GET /api/v1/certificates/{certificate}/signed-download */
+    public function signedDownload(Request $request, Certificate $certificate)
+    {
+        // Ensure course title is loaded
+        $certificate->loadMissing('course:id,title');
+
+        $disk = env('FILESYSTEM_DISK', 'local');
+        $path = "certificates/{$certificate->ulid}.pdf";
+
+        if (!Storage::disk($disk)->exists($path)) {
+            // Self-healing fallback: Generate the certificate PDF on-the-fly synchronously
+            try {
+                $user = User::findOrFail($certificate->user_id);
+                $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
+                
+                $job = new GenerateCertificateJob($certificate->user_id, $certificate->course_id, $tenantId);
+                $job->handle();
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('On-the-fly certificate generation failed', [
+                    'ulid' => $certificate->ulid,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // 2_graceful_async_file_handling: Check if the file exists after attempt
+        if (!Storage::disk($disk)->exists($path)) {
+            return response()->json([
+                'error'  => 'Certificate is currently being generated. Please try again in a few seconds.',
+                'status' => 'pending'
+            ], 409);
+        }
 
         $filename = 'certificate-' . strtolower(str_replace(' ', '-', $certificate->course->title)) . '.pdf';
 
-        return $pdf->download($filename);
+        return Storage::disk($disk)->download($path, $filename, [
+            'Content-Type' => 'application/pdf',
+        ]);
     }
 
-    /** GET /certificates/{uuid}/verify  (public — JSON) */
-    public function verify(string $uuid): JsonResponse
+    /** GET /certificates/{ulid}/verify  (public — JSON) */
+    public function verify(Request $request, string $ulid): JsonResponse
     {
-        $certificate = Certificate::where('uuid', $uuid)
+        $signature = $request->query('signature');
+        $userId = $request->query('userId');
+        $courseId = $request->query('courseId');
+
+        if (!$signature || !$userId || !$courseId) {
+            return response()->json(['valid' => false, 'message' => 'Missing verification parameters.'], 400);
+        }
+
+        // 1. Parse signature (version:hash)
+        $parts = explode(':', $signature, 2);
+        if (count($parts) !== 2) {
+            return response()->json(['valid' => false, 'message' => 'Malformed signature.'], 400);
+        }
+
+        $version = $parts[0];
+
+        // 2. CRYPTOGRAPHICALLY VALIDATE SIGNATURE BEFORE QUERYING DATABASE
+        try {
+            $expectedSignature = Certificate::generateSignature($version, $ulid, (int)$userId, (int)$courseId);
+            if (!hash_equals($expectedSignature, $signature)) {
+                return response()->json(['valid' => false, 'message' => 'Signature verification failed.'], 400);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['valid' => false, 'message' => 'Verification error.'], 400);
+        }
+
+        // 3. NOW query the database safely
+        $certificate = Certificate::where('ulid', $ulid)
+            ->where('user_id', $userId)
+            ->where('course_id', $courseId)
             ->with(['user:id,name', 'course:id,title,thumbnail,category'])
             ->first();
 
         if (! $certificate) {
-            return response()->json(['valid' => false, 'message' => 'Certificate not found.'], 404);
+            return response()->json(['valid' => false, 'message' => 'Certificate not found in database records.'], 404);
         }
 
         return response()->json([
@@ -96,7 +184,7 @@ class CertificateController extends Controller
             'course'     => $certificate->course->title,
             'category'   => $certificate->course->category,
             'issued_at'  => $certificate->issued_at->toDateString(),
-            'uuid'       => $certificate->uuid,
+            'ulid'       => $certificate->ulid,
         ]);
     }
 
@@ -108,17 +196,90 @@ class CertificateController extends Controller
             'course_id' => 'required|exists:courses,id',
         ]);
 
-        $certificate = Certificate::firstOrCreate([
-            'user_id'   => $request->input('user_id'),
-            'course_id' => $request->input('course_id'),
-        ]);
+        $userId = $request->input('user_id');
+        $courseId = $request->input('course_id');
 
-        $certificate->load(['user:id,name,email', 'course:id,title,category']);
+        // Check if certificate already exists
+        $certificate = Certificate::where('user_id', $userId)
+            ->where('course_id', $courseId)
+            ->first();
+
+        $user = User::findOrFail($userId);
+        $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
+
+        if ($certificate) {
+            $disk = env('FILESYSTEM_DISK', 'local');
+            $path = "certificates/{$certificate->ulid}.pdf";
+            if (!Storage::disk($disk)->exists($path)) {
+                GenerateCertificateJob::dispatch($userId, $courseId, $tenantId);
+                return response()->json([
+                    'message' => 'Certificate file is missing. Regeneration started.',
+                    'status'  => 'pending'
+                ], 202);
+            }
+
+            return response()->json([
+                'message'     => 'Certificate already exists.',
+                'certificate' => $certificate,
+            ], 200);
+        }
+
+        // Dispatch asynchronous generation job
+        GenerateCertificateJob::dispatch($userId, $courseId, $tenantId);
 
         return response()->json([
-            'message'     => $certificate->wasRecentlyCreated ? 'Certificate issued.' : 'Certificate already exists.',
-            'certificate' => $certificate,
-        ], $certificate->wasRecentlyCreated ? 201 : 200);
+            'message' => 'Certificate generation started asynchronously by admin.',
+            'status'  => 'pending'
+        ], 202);
+    }
+
+    /** POST /student/certificates/{ulid}/regenerate  (student — own certificates only) */
+    public function studentRegenerate(Request $request, string $ulid): JsonResponse
+    {
+        $certificate = Certificate::where('ulid', $ulid)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $disk = env('FILESYSTEM_DISK', 'local');
+        $path = "certificates/{$certificate->ulid}.pdf";
+
+        if (Storage::disk($disk)->exists($path)) {
+            Storage::disk($disk)->delete($path);
+        }
+
+        $user = $request->user();
+        $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
+
+        GenerateCertificateJob::dispatch($certificate->user_id, $certificate->course_id, $tenantId);
+
+        return response()->json([
+            'message' => 'Certificate regeneration started. Please download again in a few seconds.',
+            'status'  => 'pending',
+        ], 202);
+    }
+
+    /** POST /dashboard/certificates/{ulid}/regenerate  (admin) */
+    public function adminRegenerate(Request $request, string $ulid): JsonResponse
+    {
+        $certificate = Certificate::where('ulid', $ulid)->firstOrFail();
+
+        $disk = env('FILESYSTEM_DISK', 'local');
+        $path = "certificates/{$certificate->ulid}.pdf";
+
+        // Delete the old stored PDF so the next download regenerates it fresh
+        if (Storage::disk($disk)->exists($path)) {
+            Storage::disk($disk)->delete($path);
+        }
+
+        $user = User::findOrFail($certificate->user_id);
+        $tenantId = method_exists($user, 'tenantId') ? $user->tenantId() : 1;
+
+        GenerateCertificateJob::dispatch($certificate->user_id, $certificate->course_id, $tenantId);
+
+        return response()->json([
+            'message' => 'Certificate regeneration started. Please download again in a few seconds.',
+            'status'  => 'pending',
+        ], 202);
     }
 
     /** GET /dashboard/certificates  (admin) */

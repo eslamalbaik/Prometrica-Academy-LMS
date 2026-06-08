@@ -18,9 +18,23 @@ Route::get('/landing/courses/{id}', [LandingCourseController::class, 'show']);
 Route::get('/landing/digital-products', [\App\Http\Controllers\Api\LandingDigitalProductController::class, 'index']);
 Route::get('/landing/digital-products/{product}', [\App\Http\Controllers\Api\LandingDigitalProductController::class, 'show']);
 
+// Public pricing plans (active only)
+Route::get('/landing/pricing-plans', function () {
+    return response()->json(
+        \App\Models\PricingPlan::where('is_active', true)->orderBy('sort')->orderBy('id')->get()
+    );
+});
+
+// Public FAQs (active only)
+Route::get('/landing/faqs', function () {
+    return response()->json(
+        \App\Models\Faq::where('is_active', true)->orderBy('sort')->orderBy('id')->get()
+    );
+});
+
 // ─── Public certificate routes ───────────────────────────────────────────────
-Route::get('/certificates/{uuid}/verify',  [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
-Route::get('/certificates/{uuid}/download', [\App\Http\Controllers\Api\CertificateController::class, 'download']);
+Route::get('/certificates/{ulid}/verify',  [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
+
 
 Route::middleware('auth:sanctum')->prefix('student')->group(function () {
     Route::get('/my-courses', [\App\Http\Controllers\Api\StudentController::class, 'myCourses']);
@@ -39,6 +53,7 @@ Route::middleware('auth:sanctum')->prefix('student')->group(function () {
     // Certificates
     Route::get('/certificates', [\App\Http\Controllers\Api\CertificateController::class, 'index']);
     Route::post('/courses/{id}/certificate', [\App\Http\Controllers\Api\CertificateController::class, 'issue']);
+    Route::post('/certificates/{ulid}/regenerate', [\App\Http\Controllers\Api\CertificateController::class, 'studentRegenerate']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -81,7 +96,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     // Certificates (admin)
     Route::get('/certificates',        [\App\Http\Controllers\Api\CertificateController::class, 'adminIndex']);
     Route::get('/certificates/stats',  [\App\Http\Controllers\Api\CertificateController::class, 'adminStats']);
-    Route::post('/certificates/issue', [\App\Http\Controllers\Api\CertificateController::class, 'adminIssue']);
+    Route::post('/certificates/issue',                    [\App\Http\Controllers\Api\CertificateController::class, 'adminIssue']);
+    Route::post('/certificates/{ulid}/regenerate',        [\App\Http\Controllers\Api\CertificateController::class, 'adminRegenerate']);
 });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->group(function () {
@@ -128,6 +144,18 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/digital-products/{product}/files', [\App\Http\Controllers\Api\DigitalProductFileController::class, 'store']);
     Route::delete('/digital-product-files/{file}',   [\App\Http\Controllers\Api\DigitalProductFileController::class, 'destroy']);
 
+    // Global pricing plans (landing packages)
+    Route::get('/pricing-plans',           [\App\Http\Controllers\Api\PricingPlanController::class, 'index']);
+    Route::post('/pricing-plans',          [\App\Http\Controllers\Api\PricingPlanController::class, 'store']);
+    Route::put('/pricing-plans/{plan}',    [\App\Http\Controllers\Api\PricingPlanController::class, 'update']);
+    Route::delete('/pricing-plans/{plan}', [\App\Http\Controllers\Api\PricingPlanController::class, 'destroy']);
+
+    // FAQs
+    Route::get('/faqs',         [\App\Http\Controllers\Api\FaqController::class, 'index']);
+    Route::post('/faqs',        [\App\Http\Controllers\Api\FaqController::class, 'store']);
+    Route::put('/faqs/{faq}',   [\App\Http\Controllers\Api\FaqController::class, 'update']);
+    Route::delete('/faqs/{faq}', [\App\Http\Controllers\Api\FaqController::class, 'destroy']);
+
     // Course packages (tiered entitlements)
     Route::get('/courses/{course}/packages',  [\App\Http\Controllers\Api\CoursePackageController::class, 'index']);
     Route::post('/courses/{course}/packages', [\App\Http\Controllers\Api\CoursePackageController::class, 'store']);
@@ -152,6 +180,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         [\App\Http\Controllers\Api\DigitalPurchaseController::class, 'store']);
     Route::get('/digital-products/{product}/files/{file}/download',
         [\App\Http\Controllers\Api\DigitalDownloadController::class, 'requestDownload']);
+    Route::get('/certificates/{certificate:ulid}/download', [\App\Http\Controllers\Api\CertificateController::class, 'download']);
 });
 
 // ─── Digital Products: signed file serving (NO auth — signature is the proof) ─
@@ -159,5 +188,14 @@ Route::get('/v1/digital-products/files/{file}/serve',
     [\App\Http\Controllers\Api\DigitalDownloadController::class, 'serve'])
     ->middleware('signed')
     ->name('digital-products.files.serve');
+
+// ─── Certificates: signed file serving (NO auth — signature is the proof) ─
+Route::prefix('v1')->group(function () {
+    Route::get('certificates/{certificate:ulid}/signed-download',
+        [\App\Http\Controllers\Api\CertificateController::class, 'signedDownload'])
+        ->middleware('signed')
+        ->name('certificate.signed_download');
+});
+
 
 
