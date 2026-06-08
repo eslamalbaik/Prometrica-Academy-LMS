@@ -109,8 +109,8 @@ class GenerateCertificateJob implements ShouldQueue
                     'verify_url' => $verifyUrl,
                 ])->render();
 
-                // Prevent EPERM errors on Windows by ensuring a writable temporary directory is used
-                $tempPath = storage_path('tmp');
+                // Use /tmp for snap Chromium compatibility (snap sandboxes block /var/www access)
+                $tempPath = '/tmp/browsershot';
                 if (!file_exists($tempPath)) {
                     mkdir($tempPath, 0777, true);
                 }
@@ -118,10 +118,7 @@ class GenerateCertificateJob implements ShouldQueue
                 putenv("TEMP={$tempPath}");
                 putenv("TMP={$tempPath}");
 
-                // Chrome creates its own profile dir via os.tmpdir(); on Windows this
-                // resolves to C:\Windows\temp which is not writable → EPERM. Pointing
-                // --user-data-dir at our writable storage path fixes it reliably.
-                $chromeProfile = $tempPath . DIRECTORY_SEPARATOR . 'chrome-profile';
+                $chromeProfile = '/tmp/chrome-profile';
                 if (!file_exists($chromeProfile)) {
                     mkdir($chromeProfile, 0777, true);
                 }
