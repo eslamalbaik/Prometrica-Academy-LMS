@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Enrollment extends Model
 {
     protected $fillable = [
-        'user_id', 'course_id', 'course_package_id', 'progress', 'enrolled_at', 'expires_at',
+        'user_id', 'course_id', 'course_package_id', 'bundle_id', 'progress', 'enrolled_at', 'expires_at',
     ];
 
     protected $casts = [
@@ -28,6 +28,11 @@ class Enrollment extends Model
     public function coursePackage()
     {
         return $this->belongsTo(CoursePackage::class);
+    }
+
+    public function bundle()
+    {
+        return $this->belongsTo(Bundle::class);
     }
 
     /** Access is active when there is no expiry, or the expiry is still in the future. */

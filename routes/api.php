@@ -32,6 +32,9 @@ Route::get('/landing/faqs', function () {
     );
 });
 
+// Public bundles (active only)
+Route::get('/landing/bundles', [\App\Http\Controllers\Api\BundleController::class, 'landing']);
+
 // ─── Public certificate routes ───────────────────────────────────────────────
 Route::get('/certificates/{ulid}/verify',  [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
 
@@ -161,6 +164,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/courses/{course}/packages', [\App\Http\Controllers\Api\CoursePackageController::class, 'store']);
     Route::put('/course-packages/{package}',  [\App\Http\Controllers\Api\CoursePackageController::class, 'update']);
     Route::delete('/course-packages/{package}', [\App\Http\Controllers\Api\CoursePackageController::class, 'destroy']);
+
+    // Bundles (multi-course packages)
+    Route::get('/bundles',              [\App\Http\Controllers\Api\BundleController::class, 'index']);
+    Route::post('/bundles',             [\App\Http\Controllers\Api\BundleController::class, 'store']);
+    Route::put('/bundles/{bundle}',     [\App\Http\Controllers\Api\BundleController::class, 'update']);
+    Route::delete('/bundles/{bundle}',  [\App\Http\Controllers\Api\BundleController::class, 'destroy']);
 });
 
 // ─── Digital Products: Student library + entitlement download request ────────
@@ -181,6 +190,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/digital-products/{product}/files/{file}/download',
         [\App\Http\Controllers\Api\DigitalDownloadController::class, 'requestDownload']);
     Route::get('/certificates/{certificate:ulid}/download', [\App\Http\Controllers\Api\CertificateController::class, 'download']);
+
+    // Bundle purchase (student)
+    Route::post('/bundles/{bundle}/purchase', [\App\Http\Controllers\Api\BundleController::class, 'purchase']);
 });
 
 // ─── Digital Products: signed file serving (NO auth — signature is the proof) ─
