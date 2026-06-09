@@ -132,6 +132,7 @@ class StudentController extends Controller
             'modules.lessons' => function ($query) {
                 $query->orderBy('order');
             },
+            'modules.lessons.attachments',
             'modules.quizzes' => function ($query) {
                 $query->orderBy('order');
             },

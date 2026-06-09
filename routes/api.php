@@ -100,6 +100,11 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/modules/{id}/attachments',   [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'store']);
     Route::delete('/attachments/{id}',         [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'destroy']);
 
+    // Lesson PDF attachments
+    Route::get('/lessons/{id}/attachments',           [\App\Http\Controllers\Api\LessonAttachmentController::class, 'index']);
+    Route::post('/lessons/{id}/attachments',          [\App\Http\Controllers\Api\LessonAttachmentController::class, 'store']);
+    Route::delete('/lesson-attachments/{id}',         [\App\Http\Controllers\Api\LessonAttachmentController::class, 'destroy']);
+
     // Certificates (admin)
     Route::get('/certificates',        [\App\Http\Controllers\Api\CertificateController::class, 'adminIndex']);
     Route::get('/certificates/stats',  [\App\Http\Controllers\Api\CertificateController::class, 'adminStats']);
