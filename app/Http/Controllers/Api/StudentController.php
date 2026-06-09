@@ -159,6 +159,24 @@ class StudentController extends Controller
                     'expires_at' => $enrollment->expires_at,
                 ], 403);
             }
+
+            // ── Device-lock check ──────────────────────────────────────────
+            if ($enrollment) {
+                $incomingDeviceId = $request->header('X-Device-ID');
+                if ($incomingDeviceId) {
+                    if (empty($enrollment->device_id)) {
+                        // First access → register this device
+                        $enrollment->update(['device_id' => $incomingDeviceId]);
+                    } elseif ($enrollment->device_id !== $incomingDeviceId) {
+                        // Different device → deny
+                        return response()->json([
+                            'device_locked' => true,
+                            'message'       => 'هذا الكورس مرتبط بجهاز آخر. تواصل مع الدعم لإلغاء القفل.',
+                            'message_en'    => 'This course is locked to another device. Contact support to unlock.',
+                        ], 423);
+                    }
+                }
+            }
         }
 
         $progressService = app(CourseProgressService::class);

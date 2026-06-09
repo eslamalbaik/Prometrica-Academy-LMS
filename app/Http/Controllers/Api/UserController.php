@@ -55,6 +55,8 @@ class UserController extends Controller
             'course_title'  => $e->course?->title,
             'enrolled_at'   => $e->created_at,
             'progress'      => $e->progress ?? 0,
+            'device_locked' => !empty($e->device_id),
+            'device_id'     => $e->device_id,
         ]);
 
         return response()->json($paginator);
@@ -109,6 +111,17 @@ class UserController extends Controller
             ],
             'enrollments' => $enrollments,
             'bundles'     => $bundles,
+        ]);
+    }
+
+    /** POST /api/dashboard/enrollments/{id}/reset-device — Admin clears the device lock */
+    public function resetDeviceLock($id)
+    {
+        $enrollment = Enrollment::findOrFail($id);
+        $enrollment->update(['device_id' => null]);
+
+        return response()->json([
+            'message' => 'Device lock cleared. Student can now login from any device.',
         ]);
     }
 

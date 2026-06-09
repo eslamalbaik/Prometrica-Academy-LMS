@@ -80,8 +80,9 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::get('/students/{id}/detail',[\App\Http\Controllers\Api\UserController::class, 'studentDetail']);
 
     // Enrollments
-    Route::get('/enrollments', [\App\Http\Controllers\Api\UserController::class, 'enrollments']);
-    Route::post('/enrollments',[\App\Http\Controllers\Api\UserController::class, 'adminEnroll']);
+    Route::get('/enrollments',                               [\App\Http\Controllers\Api\UserController::class, 'enrollments']);
+    Route::post('/enrollments',                              [\App\Http\Controllers\Api\UserController::class, 'adminEnroll']);
+    Route::post('/enrollments/{id}/reset-device',            [\App\Http\Controllers\Api\UserController::class, 'resetDeviceLock']);
 
     // Course content builders
     Route::post('/modules',           [\App\Http\Controllers\Api\CourseModuleController::class, 'store']);
