@@ -30,7 +30,7 @@ use Illuminate\Support\Str;
  */
 class DemoSeeder extends Seeder
 {
-    private string $bunnyVideo = 'https://lms-storage.b-cdn.net/WhatsApp%20Video%202026-06-06%20at%206.04.48%20PM.mp4';
+    private string $bunnyVideo = 'https://player.mediadelivery.net/play/679277/d957c1bd-1913-40cf-aa28-930e8f45643b';
 
     public function run(): void
     {
