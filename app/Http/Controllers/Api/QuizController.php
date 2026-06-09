@@ -33,11 +33,11 @@ class QuizController extends Controller
             'title' => 'required|string|max:255',
             'passing_score' => 'required|integer|min:0|max:100',
             'order' => 'nullable|integer|min:0',
-            'questions' => 'required|array|min:1',
-            'questions.*.question_text' => 'required|string',
-            'questions.*.options' => 'required|array|min:2',
-            'questions.*.options.*.option_text' => 'required|string',
-            'questions.*.options.*.is_correct' => 'required|boolean',
+            'questions' => 'nullable|array',
+            'questions.*.question_text' => 'required_with:questions|string',
+            'questions.*.options' => 'required_with:questions|array|min:2',
+            'questions.*.options.*.option_text' => 'required_with:questions|string',
+            'questions.*.options.*.is_correct' => 'required_with:questions|boolean',
         ]);
 
         DB::beginTransaction();

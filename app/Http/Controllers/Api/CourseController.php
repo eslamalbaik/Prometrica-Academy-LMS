@@ -18,7 +18,7 @@ class CourseController extends Controller
         $courses = \App\Models\Course::query()
             ->with([
                 'instructor:id,name',
-                'modules:id,course_id,order',
+                'modules:id,course_id,title,order',
                 'modules.lessons:id,course_module_id',
                 'reviews:id,course_id,rating,is_approved',
             ])
