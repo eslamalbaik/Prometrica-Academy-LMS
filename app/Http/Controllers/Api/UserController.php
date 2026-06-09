@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Enrollment;
+use App\Models\Bundle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -57,6 +58,58 @@ class UserController extends Controller
         ]);
 
         return response()->json($paginator);
+    }
+
+    /** GET /api/dashboard/students/{id}/detail — Progress + bundles for one student */
+    public function studentDetail($id)
+    {
+        $student = User::where('role', 'student')->findOrFail($id);
+
+        // All course enrollments with progress
+        $enrollments = Enrollment::with(['course:id,title,thumbnail'])
+            ->where('user_id', $id)
+            ->latest()
+            ->get()
+            ->map(fn($e) => [
+                'id'           => $e->id,
+                'course_id'    => $e->course_id,
+                'course_title' => $e->course?->title,
+                'thumbnail'    => $e->course?->thumbnail,
+                'progress'     => $e->progress ?? 0,
+                'enrolled_at'  => $e->enrolled_at ?? $e->created_at,
+                'expires_at'   => $e->expires_at,
+                'bundle_id'    => $e->bundle_id,
+            ]);
+
+        // Distinct bundles the student purchased
+        $bundleIds = Enrollment::where('user_id', $id)
+            ->whereNotNull('bundle_id')
+            ->pluck('bundle_id')
+            ->unique()
+            ->values();
+
+        $bundles = Bundle::whereIn('id', $bundleIds)
+            ->withCount('courses')
+            ->get()
+            ->map(fn($b) => [
+                'id'           => $b->id,
+                'name'         => $b->name,
+                'name_en'      => $b->name_en,
+                'price'        => $b->price,
+                'courses_count'=> $b->courses_count,
+                'access_days'  => $b->access_days,
+            ]);
+
+        return response()->json([
+            'student'     => [
+                'id'         => $student->id,
+                'name'       => $student->name,
+                'email'      => $student->email,
+                'created_at' => $student->created_at,
+            ],
+            'enrollments' => $enrollments,
+            'bundles'     => $bundles,
+        ]);
     }
 
     /** POST /api/dashboard/enrollments — Admin manually enrolls, atomic duplicate prevention */

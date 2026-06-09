@@ -61,4 +61,22 @@ class LessonController extends Controller
         $lesson->delete();
         return response()->json(['message' => 'Lesson deleted']);
     }
+
+    /** PUT /api/dashboard/lessons/reorder
+     *  Body: { items: [{id: number, order: number}] }
+     */
+    public function reorder(Request $request)
+    {
+        $request->validate([
+            'items'         => 'required|array|min:1',
+            'items.*.id'    => 'required|integer|exists:lessons,id',
+            'items.*.order' => 'required|integer|min:0',
+        ]);
+
+        foreach ($request->input('items') as $item) {
+            Lesson::where('id', $item['id'])->update(['order' => $item['order']]);
+        }
+
+        return response()->json(['message' => 'Lessons reordered']);
+    }
 }

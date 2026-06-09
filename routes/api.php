@@ -75,21 +75,24 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::delete('/quizzes/{id}', [\App\Http\Controllers\Api\QuizController::class, 'destroy']);
 
     // Students
-    Route::get('/students',    [\App\Http\Controllers\Api\UserController::class, 'students']);
-    Route::post('/students',   [\App\Http\Controllers\Api\UserController::class, 'store']);
+    Route::get('/students',            [\App\Http\Controllers\Api\UserController::class, 'students']);
+    Route::post('/students',           [\App\Http\Controllers\Api\UserController::class, 'store']);
+    Route::get('/students/{id}/detail',[\App\Http\Controllers\Api\UserController::class, 'studentDetail']);
 
     // Enrollments
     Route::get('/enrollments', [\App\Http\Controllers\Api\UserController::class, 'enrollments']);
     Route::post('/enrollments',[\App\Http\Controllers\Api\UserController::class, 'adminEnroll']);
 
     // Course content builders
-    Route::post('/modules',         [\App\Http\Controllers\Api\CourseModuleController::class, 'store']);
-    Route::put('/modules/{id}',     [\App\Http\Controllers\Api\CourseModuleController::class, 'update']);
-    Route::delete('/modules/{id}',  [\App\Http\Controllers\Api\CourseModuleController::class, 'destroy']);
+    Route::post('/modules',           [\App\Http\Controllers\Api\CourseModuleController::class, 'store']);
+    Route::put('/modules/reorder',    [\App\Http\Controllers\Api\CourseModuleController::class, 'reorder']);
+    Route::put('/modules/{id}',       [\App\Http\Controllers\Api\CourseModuleController::class, 'update']);
+    Route::delete('/modules/{id}',    [\App\Http\Controllers\Api\CourseModuleController::class, 'destroy']);
 
-    Route::post('/lessons',         [\App\Http\Controllers\Api\LessonController::class, 'store']);
-    Route::put('/lessons/{id}',     [\App\Http\Controllers\Api\LessonController::class, 'update']);
-    Route::delete('/lessons/{id}',  [\App\Http\Controllers\Api\LessonController::class, 'destroy']);
+    Route::post('/lessons',           [\App\Http\Controllers\Api\LessonController::class, 'store']);
+    Route::put('/lessons/reorder',    [\App\Http\Controllers\Api\LessonController::class, 'reorder']);
+    Route::put('/lessons/{id}',       [\App\Http\Controllers\Api\LessonController::class, 'update']);
+    Route::delete('/lessons/{id}',    [\App\Http\Controllers\Api\LessonController::class, 'destroy']);
 
     // Module PDF attachments
     Route::get('/modules/{id}/attachments',    [\App\Http\Controllers\Api\ModuleAttachmentController::class, 'index']);

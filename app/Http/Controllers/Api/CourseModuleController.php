@@ -44,5 +44,23 @@ class CourseModuleController extends Controller
         $module->delete();
         return response()->json(['message' => 'Module deleted']);
     }
+
+    /** PUT /api/dashboard/modules/reorder
+     *  Body: { items: [{id: number, order: number}] }
+     */
+    public function reorder(Request $request)
+    {
+        $request->validate([
+            'items'         => 'required|array|min:1',
+            'items.*.id'    => 'required|integer|exists:course_modules,id',
+            'items.*.order' => 'required|integer|min:0',
+        ]);
+
+        foreach ($request->input('items') as $item) {
+            Module::where('id', $item['id'])->update(['order' => $item['order']]);
+        }
+
+        return response()->json(['message' => 'Modules reordered']);
+    }
 }
 
