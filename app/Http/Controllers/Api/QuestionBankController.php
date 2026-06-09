@@ -118,7 +118,7 @@ class QuestionBankController extends Controller
         $quiz = Quiz::findOrFail($id);
 
         $request->validate([
-            'question_ids' => 'required|array',
+            'question_ids'   => 'nullable|array',
             'question_ids.*' => 'integer|exists:questions,id',
         ]);
 

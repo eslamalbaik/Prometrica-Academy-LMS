@@ -82,45 +82,25 @@ class QuizController extends Controller
         $quiz = Quiz::findOrFail($id);
 
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'passing_score' => 'required|integer|min:0|max:100',
-            'order' => 'integer',
-            'questions' => 'sometimes|array',
+            'title'            => 'required|string|max:255',
+            'passing_score'    => 'required|integer|min:0|max:100',
+            'course_module_id' => 'sometimes|exists:course_modules,id',
+            'order'            => 'sometimes|integer',
         ]);
 
-        DB::beginTransaction();
-        try {
-            $quiz->update([
-                'title' => $validated['title'],
-                'passing_score' => $validated['passing_score'],
-                'order' => $validated['order'] ?? $quiz->order,
-            ]);
+        // Questions are managed exclusively via the sync-questions endpoint
+        // (pivot table). Never delete or recreate them here.
+        $quiz->update([
+            'title'            => $validated['title'],
+            'passing_score'    => $validated['passing_score'],
+            'course_module_id' => $validated['course_module_id'] ?? $quiz->course_module_id,
+            'order'            => $validated['order'] ?? $quiz->order,
+        ]);
 
-            if (isset($validated['questions'])) {
-                // For simplicity in this demo, if questions are provided, we replace them
-                // A more robust implementation would sync them based on IDs
-                $quiz->questions()->delete();
-                foreach ($validated['questions'] as $qIndex => $qData) {
-                    $question = $quiz->questions()->create([
-                        'question_text' => $qData['question_text'],
-                        'order' => $qIndex,
-                    ]);
-
-                    foreach ($qData['options'] as $oData) {
-                        $question->options()->create([
-                            'option_text' => $oData['option_text'],
-                            'is_correct' => $oData['is_correct'],
-                        ]);
-                    }
-                }
-            }
-
-            DB::commit();
-            return response()->json(['message' => 'Quiz updated successfully', 'quiz' => $quiz->load('questions.options')]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Failed to update quiz', 'error' => $e->getMessage()], 500);
-        }
+        return response()->json([
+            'message' => 'Quiz updated successfully',
+            'quiz'    => $quiz->load('questions.options', 'module.course'),
+        ]);
     }
 
     public function destroy($id)
