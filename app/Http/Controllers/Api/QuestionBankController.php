@@ -38,9 +38,10 @@ class QuestionBankController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'question_text' => 'required|string',
-            'image'         => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'options'       => ['required', 'array', new QuestionValidationRule()],
+            'question_text'    => 'required|string',
+            'image'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'options'          => ['required', 'array', new QuestionValidationRule()],
+            'option_images.*'  => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         DB::beginTransaction();
@@ -56,10 +57,15 @@ class QuestionBankController extends Controller
                 'order'         => 0,
             ]);
 
-            foreach ($request->input('options') as $optionData) {
+            foreach ($request->input('options') as $index => $optionData) {
+                $optionImagePath = null;
+                if ($request->hasFile("option_images.{$index}")) {
+                    $optionImagePath = $request->file("option_images.{$index}")->store('option_images', 'public');
+                }
                 $question->options()->create([
                     'option_text' => $optionData['option_text'],
                     'is_correct'  => filter_var($optionData['is_correct'], FILTER_VALIDATE_BOOLEAN),
+                    'image_path'  => $optionImagePath,
                 ]);
             }
 
@@ -79,10 +85,11 @@ class QuestionBankController extends Controller
         $question = Question::findOrFail($id);
 
         $request->validate([
-            'question_text' => 'required|string',
-            'image'         => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'remove_image'  => 'sometimes|boolean',
-            'options'       => ['required', 'array', new QuestionValidationRule()],
+            'question_text'    => 'required|string',
+            'image'            => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'remove_image'     => 'sometimes|boolean',
+            'options'          => ['required', 'array', new QuestionValidationRule()],
+            'option_images.*'  => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         DB::beginTransaction();
@@ -90,7 +97,6 @@ class QuestionBankController extends Controller
             $updates = ['question_text' => $request->input('question_text')];
 
             if ($request->hasFile('image')) {
-                // Delete old image
                 if ($question->image_path) {
                     Storage::disk('public')->delete($question->image_path);
                 }
@@ -102,13 +108,23 @@ class QuestionBankController extends Controller
 
             $question->update($updates);
 
-            // Recreate options to keep it clean and robust
+            // Delete old option images before recreating options
+            foreach ($question->options as $option) {
+                if ($option->image_path) {
+                    Storage::disk('public')->delete($option->image_path);
+                }
+            }
             $question->options()->delete();
 
-            foreach ($request->input('options') as $optionData) {
+            foreach ($request->input('options') as $index => $optionData) {
+                $optionImagePath = null;
+                if ($request->hasFile("option_images.{$index}")) {
+                    $optionImagePath = $request->file("option_images.{$index}")->store('option_images', 'public');
+                }
                 $question->options()->create([
                     'option_text' => $optionData['option_text'],
                     'is_correct'  => filter_var($optionData['is_correct'], FILTER_VALIDATE_BOOLEAN),
+                    'image_path'  => $optionImagePath,
                 ]);
             }
 
@@ -127,9 +143,14 @@ class QuestionBankController extends Controller
     {
         $question = Question::findOrFail($id);
 
-        // Delete associated image from storage
         if ($question->image_path) {
             Storage::disk('public')->delete($question->image_path);
+        }
+
+        foreach ($question->options as $option) {
+            if ($option->image_path) {
+                Storage::disk('public')->delete($option->image_path);
+            }
         }
 
         $question->delete();
