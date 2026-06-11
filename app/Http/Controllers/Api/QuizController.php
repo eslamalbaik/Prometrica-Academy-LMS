@@ -32,8 +32,8 @@ class QuizController extends Controller
             'course_module_id' => 'required|exists:course_modules,id',
             'title' => 'required|string|max:255',
             'passing_score' => 'required|integer|min:0|max:100',
-            'order' => 'nullable|integer|min:0',
-            'questions' => 'nullable|array',
+            'order' => 'sometimes|nullable|integer|min:0',
+            'questions' => 'sometimes|nullable|array',
             'questions.*.question_text' => 'required_with:questions|string',
             'questions.*.options' => 'required_with:questions|array|min:2',
             'questions.*.options.*.option_text' => 'required_with:questions|string',
@@ -56,7 +56,7 @@ class QuizController extends Controller
                 'order' => $validated['order'],
             ]);
 
-            foreach ($validated['questions'] as $qIndex => $qData) {
+            foreach ($validated['questions'] ?? [] as $qIndex => $qData) {
                 $question = $quiz->questions()->create([
                     'question_text' => $qData['question_text'],
                     'order' => $qIndex,
