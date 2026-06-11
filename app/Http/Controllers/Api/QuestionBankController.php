@@ -8,6 +8,7 @@ use App\Models\Quiz;
 use App\Rules\QuestionValidationRule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class QuestionBankController extends Controller
 {
@@ -38,20 +39,27 @@ class QuestionBankController extends Controller
     {
         $request->validate([
             'question_text' => 'required|string',
-            'options' => ['required', 'array', new QuestionValidationRule()],
+            'image'         => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'options'       => ['required', 'array', new QuestionValidationRule()],
         ]);
 
         DB::beginTransaction();
         try {
+            $imagePath = null;
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store('question_images', 'public');
+            }
+
             $question = Question::create([
                 'question_text' => $request->input('question_text'),
-                'order' => 0 // Standalone question bank order is default 0
+                'image_path'    => $imagePath,
+                'order'         => 0,
             ]);
 
             foreach ($request->input('options') as $optionData) {
                 $question->options()->create([
                     'option_text' => $optionData['option_text'],
-                    'is_correct' => filter_var($optionData['is_correct'], FILTER_VALIDATE_BOOLEAN),
+                    'is_correct'  => filter_var($optionData['is_correct'], FILTER_VALIDATE_BOOLEAN),
                 ]);
             }
 
@@ -72,14 +80,27 @@ class QuestionBankController extends Controller
 
         $request->validate([
             'question_text' => 'required|string',
-            'options' => ['required', 'array', new QuestionValidationRule()],
+            'image'         => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'remove_image'  => 'sometimes|boolean',
+            'options'       => ['required', 'array', new QuestionValidationRule()],
         ]);
 
         DB::beginTransaction();
         try {
-            $question->update([
-                'question_text' => $request->input('question_text'),
-            ]);
+            $updates = ['question_text' => $request->input('question_text')];
+
+            if ($request->hasFile('image')) {
+                // Delete old image
+                if ($question->image_path) {
+                    Storage::disk('public')->delete($question->image_path);
+                }
+                $updates['image_path'] = $request->file('image')->store('question_images', 'public');
+            } elseif ($request->boolean('remove_image') && $question->image_path) {
+                Storage::disk('public')->delete($question->image_path);
+                $updates['image_path'] = null;
+            }
+
+            $question->update($updates);
 
             // Recreate options to keep it clean and robust
             $question->options()->delete();
@@ -87,7 +108,7 @@ class QuestionBankController extends Controller
             foreach ($request->input('options') as $optionData) {
                 $question->options()->create([
                     'option_text' => $optionData['option_text'],
-                    'is_correct' => filter_var($optionData['is_correct'], FILTER_VALIDATE_BOOLEAN),
+                    'is_correct'  => filter_var($optionData['is_correct'], FILTER_VALIDATE_BOOLEAN),
                 ]);
             }
 
@@ -105,6 +126,12 @@ class QuestionBankController extends Controller
     public function destroy($id)
     {
         $question = Question::findOrFail($id);
+
+        // Delete associated image from storage
+        if ($question->image_path) {
+            Storage::disk('public')->delete($question->image_path);
+        }
+
         $question->delete();
 
         return response()->json(['message' => 'Question deleted successfully']);

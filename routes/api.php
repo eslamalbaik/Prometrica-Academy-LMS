@@ -39,6 +39,13 @@ Route::get('/landing/bundles', [\App\Http\Controllers\Api\BundleController::clas
 Route::get('/certificates/{ulid}/verify',  [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
 
 
+// FTR-005: Student study plans
+Route::middleware('auth:sanctum')->prefix('v1/student')->group(function () {
+    Route::get('/study-plans',            [\App\Http\Controllers\Api\StudyPlanController::class, 'index']);
+    Route::post('/study-plans/unsubscribe', [\App\Http\Controllers\Api\StudyPlanController::class, 'unsubscribeEmails']);
+    Route::post('/study-plans/subscribe',   [\App\Http\Controllers\Api\StudyPlanController::class, 'subscribeEmails']);
+});
+
 Route::middleware('auth:sanctum')->prefix('student')->group(function () {
     Route::get('/my-courses', [\App\Http\Controllers\Api\StudentController::class, 'myCourses']);
     Route::get('/dashboard', [\App\Http\Controllers\Api\StudentController::class, 'dashboard']);
@@ -179,6 +186,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/bundles',             [\App\Http\Controllers\Api\BundleController::class, 'store']);
     Route::put('/bundles/{bundle}',     [\App\Http\Controllers\Api\BundleController::class, 'update']);
     Route::delete('/bundles/{bundle}',  [\App\Http\Controllers\Api\BundleController::class, 'destroy']);
+
+    // FTR-005: Admin study plan management
+    Route::get('/students/{userId}/study-plans',   [\App\Http\Controllers\Api\StudyPlanController::class, 'adminIndex']);
+    Route::put('/study-plan-tasks/{task}',          [\App\Http\Controllers\Api\StudyPlanController::class, 'updateTask']);
 });
 
 // ─── Digital Products: Student library + entitlement download request ────────

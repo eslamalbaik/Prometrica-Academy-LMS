@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Services\StudyPlanService;
 use Illuminate\Http\Request;
 
 class EnrollmentController extends Controller
@@ -40,13 +41,21 @@ class EnrollmentController extends Controller
             ? now()->addDays($course->access_days)
             : null;
 
-        Enrollment::create([
+        $enrollment = Enrollment::create([
             'user_id'     => $user->id,
             'course_id'   => $course->id,
             'progress'    => 0,
             'enrolled_at' => now(),
             'expires_at'  => $expiresAt,
         ]);
+
+        // FTR-005: Generate personalized study plan on enrollment
+        try {
+            app(StudyPlanService::class)->generateForEnrollment($enrollment);
+        } catch (\Throwable $e) {
+            // Study plan generation is non-critical; log and continue
+            \Illuminate\Support\Facades\Log::warning('Study plan generation failed: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Successfully enrolled in the course.',

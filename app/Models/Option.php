@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Option extends Model
 {
     protected $fillable = [
-        'question_id', 'option_text', 'is_correct'
+        'question_id', 'option_text', 'image_path', 'is_correct',
     ];
 
     protected $casts = [

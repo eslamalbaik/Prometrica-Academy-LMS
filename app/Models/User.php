@@ -26,6 +26,7 @@ class User extends Authenticatable
         'role',
         'avatar',
         'phone',
+        'study_emails_enabled',
     ];
 
     /**
@@ -84,5 +85,11 @@ class User extends Authenticatable
     public function productPurchases()
     {
         return $this->hasMany(ProductPurchase::class);
+    }
+
+    // FTR-005: Study plans relationship
+    public function studyPlans()
+    {
+        return $this->hasMany(StudyPlan::class);
     }
 }

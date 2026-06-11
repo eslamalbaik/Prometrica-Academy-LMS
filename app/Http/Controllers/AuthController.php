@@ -20,12 +20,18 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
-            
+
             if ($user->role === 'admin') {
                 Log::info("Admin login: {$user->email} at " . now());
             }
 
-            $token = $user->createToken('auth_token')->plainTextToken;
+            // FTR-001: Invalidate all previous sessions before issuing new token
+            $user->tokens()->delete();
+
+            $deviceLabel = substr($request->header('User-Agent', 'Unknown Device'), 0, 120);
+            $token = $user->createToken('auth_token', ['*'], now()->addDays(30));
+            $token->accessToken->update(['device_label' => $deviceLabel]);
+            $plainToken = $token->plainTextToken;
 
             $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/');
             $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
@@ -38,7 +44,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => true,
-                'token' => $token,
+                'token' => $plainToken,
                 'redirect_url' => $redirectUrl,
                 'user' => [
                     'id' => $user->id,
@@ -75,13 +81,15 @@ class AuthController extends Controller
             'role' => 'student',
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // FTR-001: No prior tokens on fresh registration, but be defensive
+        $user->tokens()->delete();
+        $plainToken = $user->createToken('auth_token')->plainTextToken;
 
         $landingUrl = rtrim(env('LANDING_URL', 'http://localhost:8080'), '/');
 
         return response()->json([
             'success' => true,
-            'token' => $token,
+            'token' => $plainToken,
             'redirect_url' => $landingUrl . '/student/dashboard',
             'message' => 'Account created successfully',
             'user' => [
@@ -174,7 +182,9 @@ class AuthController extends Controller
             Log::info("New Google student registered: {$email}");
         }
 
-        $token = $user->createToken('google_oauth')->plainTextToken;
+        // FTR-001: Invalidate all previous sessions on Google OAuth login too
+        $user->tokens()->delete();
+        $plainToken = $user->createToken('google_oauth')->plainTextToken;
 
         $redirectUrl = $user->role === 'admin'
             ? rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/') . '/dashboards/lms'
@@ -182,7 +192,7 @@ class AuthController extends Controller
 
         return response()->json([
             'success'      => true,
-            'token'        => $token,
+            'token'        => $plainToken,
             'redirect_url' => $redirectUrl,
             'user'         => [
                 'id'       => $user->id,

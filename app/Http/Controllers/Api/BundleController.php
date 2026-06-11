@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Bundle;
 use App\Models\Enrollment;
+use App\Services\StudyPlanService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BundleController extends Controller
 {
@@ -156,7 +158,7 @@ class BundleController extends Controller
                     ->exists();
 
                 if (!$exists) {
-                    Enrollment::create([
+                    $enrollment = Enrollment::create([
                         'user_id'    => $user->id,
                         'course_id'  => $course->id,
                         'bundle_id'  => $bundle->id,
@@ -164,6 +166,13 @@ class BundleController extends Controller
                         'expires_at' => $expiresAt,
                         'progress'   => 0,
                     ]);
+
+                    // FTR-005: Generate study plan per enrollment
+                    try {
+                        app(StudyPlanService::class)->generateForEnrollment($enrollment);
+                    } catch (\Throwable $e) {
+                        Log::warning('Study plan generation failed for bundle enrollment: ' . $e->getMessage());
+                    }
                 }
             }
             DB::commit();
