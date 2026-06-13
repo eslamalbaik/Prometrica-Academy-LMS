@@ -157,8 +157,8 @@
   /* White rectangle to hide the pre-printed duplicate labels on the PNG template */
   .f-cover {
       top: 85.5%;
-      left: 33%;
-      width: 58%;
+      left: 44%;
+      width: 48%;
       height: 5.5%;
       background: #ffffff;
       z-index: 1;
