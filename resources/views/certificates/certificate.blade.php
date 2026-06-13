@@ -154,6 +154,15 @@
   .f-url .lbl { color: #555555; }
   .f-url .val { color: #0f3460; }
 
+  /* White rectangle to hide the pre-printed duplicate labels on the PNG template */
+  .f-cover {
+      top: 85.5%;
+      left: 33%;
+      width: 58%;
+      height: 5.5%;
+      background: #ffffff;
+      z-index: 1;
+  }
 
 </style>
 </head>
@@ -166,6 +175,7 @@
 
     <div class="field f-body">for successfully completing the <span class="hl">{{ $course_name }}</span> course on <span class="hl">{{ $date }}</span>. We hope this milestone achieved with Prometrica Academy serves as a great motivation for your future endeavors.</div>
 
+    <div class="field f-cover"></div>
     <div class="field f-code"><span class="lbl">certificate ID:</span> <span class="val">{{ $verification_code }}</span></div>
     <div class="field f-url"><span class="lbl">Verify at:</span> <span class="val">{{ $verify_domain }}</span></div>
 
