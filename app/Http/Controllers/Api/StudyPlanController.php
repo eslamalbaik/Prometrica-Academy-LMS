@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Enrollment;
 use App\Models\StudyPlan;
 use App\Models\StudyPlanTask;
 use App\Services\StudyPlanService;
@@ -20,16 +21,47 @@ class StudyPlanController extends Controller
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+
+        // Auto-generate plans for any enrollment that doesn't have one yet.
+        Enrollment::where('user_id', $user->id)
+            ->get()
+            ->each(fn ($enrollment) => $this->service->generateForEnrollment($enrollment));
+
         $plans = StudyPlan::with([
             'course:id,title,thumbnail',
             'tasks',
         ])
-            ->where('user_id', $request->user()->id)
+            ->where('user_id', $user->id)
             ->where('status', 'active')
             ->get()
             ->map(fn ($plan) => $this->formatPlan($plan));
 
         return response()->json($plans);
+    }
+
+    /**
+     * POST /api/v1/student/study-plan-tasks/{task}/toggle
+     * Student toggles a task as complete or incomplete.
+     */
+    public function toggleTask(Request $request, StudyPlanTask $task)
+    {
+        // Ensure the task belongs to this student
+        $plan = StudyPlan::where('id', $task->study_plan_id)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        if ($task->completed_at) {
+            $task->update(['completed_at' => null]);
+        } else {
+            $task->update(['completed_at' => now()]);
+        }
+
+        return response()->json([
+            'id'           => $task->id,
+            'completed_at' => $task->completed_at?->toISOString(),
+            'progress'     => $plan->progressPercentage(),
+        ]);
     }
 
     /**

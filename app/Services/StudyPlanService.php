@@ -53,10 +53,6 @@ class StudyPlanService
             }
         }
 
-        if (empty($items)) {
-            return null;
-        }
-
         $startDate = $enrollment->enrolled_at
             ? Carbon::parse($enrollment->enrolled_at)
             : now();
@@ -68,7 +64,7 @@ class StudyPlanService
 
         $durationDays = max(1, (int) $startDate->diffInDays($endDate));
         $itemCount    = count($items);
-        $daysPerItem  = $durationDays / $itemCount;
+        $daysPerItem  = $itemCount > 0 ? $durationDays / $itemCount : 1;
 
         return DB::transaction(function () use ($enrollment, $course, $items, $startDate, $endDate, $daysPerItem) {
             $plan = StudyPlan::create([

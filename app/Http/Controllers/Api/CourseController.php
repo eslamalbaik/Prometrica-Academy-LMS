@@ -71,6 +71,17 @@ class CourseController extends Controller
         }
         $validated['instructor_id'] = $user->id;
 
+        // Auto-generate slug from title if not provided
+        if (empty($validated['slug'])) {
+            $base = \Illuminate\Support\Str::slug($validated['title']);
+            $slug = $base;
+            $i    = 1;
+            while (\App\Models\Course::where('slug', $slug)->exists()) {
+                $slug = $base . '-' . $i++;
+            }
+            $validated['slug'] = $slug;
+        }
+
         if ($request->hasFile('thumbnail')) {
             $path = $request->file('thumbnail')->store('thumbnails', 'public');
             $validated['thumbnail'] = $path;

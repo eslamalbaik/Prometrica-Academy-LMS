@@ -41,9 +41,10 @@ Route::get('/certificates/{ulid}/verify',  [\App\Http\Controllers\Api\Certificat
 
 // FTR-005: Student study plans
 Route::middleware('auth:sanctum')->prefix('v1/student')->group(function () {
-    Route::get('/study-plans',            [\App\Http\Controllers\Api\StudyPlanController::class, 'index']);
-    Route::post('/study-plans/unsubscribe', [\App\Http\Controllers\Api\StudyPlanController::class, 'unsubscribeEmails']);
-    Route::post('/study-plans/subscribe',   [\App\Http\Controllers\Api\StudyPlanController::class, 'subscribeEmails']);
+    Route::get('/study-plans',                           [\App\Http\Controllers\Api\StudyPlanController::class, 'index']);
+    Route::post('/study-plans/unsubscribe',              [\App\Http\Controllers\Api\StudyPlanController::class, 'unsubscribeEmails']);
+    Route::post('/study-plans/subscribe',                [\App\Http\Controllers\Api\StudyPlanController::class, 'subscribeEmails']);
+    Route::post('/study-plan-tasks/{task}/toggle',       [\App\Http\Controllers\Api\StudyPlanController::class, 'toggleTask']);
 });
 
 Route::middleware('auth:sanctum')->prefix('student')->group(function () {
