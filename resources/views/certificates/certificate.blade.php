@@ -156,10 +156,10 @@
 
   /* White cover to hide pre-printed labels on the background template image */
   .f-cover {
-      top: 85%;
-      left: 44%;
-      width: 52%;
-      height: 6%;
+      top: 84.5%;
+      left: 30%;
+      width: 68%;
+      height: 8%;
       background: #ffffff;
   }
 
