@@ -132,7 +132,7 @@
       font-weight: 600;
       color: #333333;
       text-align: left;
-      background: #ffffff;
+      background: transparent;
       padding: 4px 0;
   }
   .f-code .lbl { color: #555555; }
@@ -148,8 +148,8 @@
       font-weight: 600;
       color: #333333;
       text-align: left;
-      background: #ffffff;
-      padding: 4px 0 110px 0; /* bottom padding covers duplicate template labels below */
+      background: transparent;
+      padding: 4px 0;
   }
   .f-url .lbl { color: #555555; }
   .f-url .val { color: #0f3460; }
