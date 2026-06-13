@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // API-only app — never redirect unauthenticated requests, always return 401 JSON
+        $middleware->redirectGuestsTo(fn() => null);
+
         $middleware->validateCsrfTokens(except: [
             'login',
             'register',
