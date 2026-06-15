@@ -18,11 +18,9 @@ Route::get('/landing/courses/{id}', [LandingCourseController::class, 'show']);
 Route::get('/landing/digital-products', [\App\Http\Controllers\Api\LandingDigitalProductController::class, 'index']);
 Route::get('/landing/digital-products/{product}', [\App\Http\Controllers\Api\LandingDigitalProductController::class, 'show']);
 
-// Public pricing plans (active only)
+// Pricing plans replaced by Bundles — kept for backwards compatibility (redirects to bundles)
 Route::get('/landing/pricing-plans', function () {
-    return response()->json(
-        \App\Models\PricingPlan::where('is_active', true)->orderBy('sort')->orderBy('id')->get()
-    );
+    return response()->json([]);
 });
 
 // Public FAQs (active only)
@@ -164,11 +162,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/digital-products/{product}/files', [\App\Http\Controllers\Api\DigitalProductFileController::class, 'store']);
     Route::delete('/digital-product-files/{file}',   [\App\Http\Controllers\Api\DigitalProductFileController::class, 'destroy']);
 
-    // Global pricing plans (landing packages)
-    Route::get('/pricing-plans',           [\App\Http\Controllers\Api\PricingPlanController::class, 'index']);
-    Route::post('/pricing-plans',          [\App\Http\Controllers\Api\PricingPlanController::class, 'store']);
-    Route::put('/pricing-plans/{plan}',    [\App\Http\Controllers\Api\PricingPlanController::class, 'update']);
-    Route::delete('/pricing-plans/{plan}', [\App\Http\Controllers\Api\PricingPlanController::class, 'destroy']);
+    // Pricing plans removed — managed via Bundles now
 
     // FAQs
     Route::get('/faqs',         [\App\Http\Controllers\Api\FaqController::class, 'index']);
@@ -187,6 +181,16 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/bundles',             [\App\Http\Controllers\Api\BundleController::class, 'store']);
     Route::put('/bundles/{bundle}',     [\App\Http\Controllers\Api\BundleController::class, 'update']);
     Route::delete('/bundles/{bundle}',  [\App\Http\Controllers\Api\BundleController::class, 'destroy']);
+
+    // Bundle permission management
+    Route::get('/bundles/{bundle}/permissions-summary',
+        [\App\Http\Controllers\Api\BundleController::class, 'permissionsSummary']);
+    Route::put('/bundles/{bundle}/courses/{courseId}/permissions',
+        [\App\Http\Controllers\Api\BundleController::class, 'updateCoursePermissions']);
+    Route::put('/bundles/{bundle}/courses/{courseId}/quiz-permissions',
+        [\App\Http\Controllers\Api\BundleController::class, 'syncQuizPermissions']);
+    Route::put('/bundles/{bundle}/digital-products',
+        [\App\Http\Controllers\Api\BundleController::class, 'syncDigitalProducts']);
 
     // FTR-005: Admin study plan management
     Route::get('/students/{userId}/study-plans',   [\App\Http\Controllers\Api\StudyPlanController::class, 'adminIndex']);
@@ -210,6 +214,20 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         [\App\Http\Controllers\Api\DigitalPurchaseController::class, 'store']);
     Route::get('/digital-products/{product}/files/{file}/download',
         [\App\Http\Controllers\Api\DigitalDownloadController::class, 'requestDownload']);
+    Route::get('/digital-products/{product}/files/{file}/stream',
+        [\App\Http\Controllers\Api\DigitalDownloadController::class, 'stream']);
+
+    // PDF Annotations
+    Route::get('/digital-products/{product}/files/{file}/annotations',
+        [\App\Http\Controllers\Api\PdfAnnotationController::class, 'index']);
+    Route::post('/digital-products/{product}/files/{file}/annotations',
+        [\App\Http\Controllers\Api\PdfAnnotationController::class, 'store']);
+    Route::patch('/annotations/{annotation}',
+        [\App\Http\Controllers\Api\PdfAnnotationController::class, 'update']);
+    Route::delete('/annotations/{annotation}',
+        [\App\Http\Controllers\Api\PdfAnnotationController::class, 'destroy']);
+    Route::delete('/digital-products/{product}/files/{file}/annotations',
+        [\App\Http\Controllers\Api\PdfAnnotationController::class, 'destroyAll']);
     Route::get('/certificates/{certificate:ulid}/download', [\App\Http\Controllers\Api\CertificateController::class, 'download']);
 
     // Bundle purchase (student)
@@ -221,6 +239,11 @@ Route::get('/v1/digital-products/files/{file}/serve',
     [\App\Http\Controllers\Api\DigitalDownloadController::class, 'serve'])
     ->middleware('signed')
     ->name('digital-products.files.serve');
+
+Route::get('/v1/digital-products/files/{file}/view-inline',
+    [\App\Http\Controllers\Api\DigitalDownloadController::class, 'serveInline'])
+    ->middleware('signed')
+    ->name('digital-products.files.view');
 
 // ─── Certificates: signed file serving (NO auth — signature is the proof) ─
 Route::prefix('v1')->group(function () {

@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lesson;
+use App\Models\StudyPlan;
+use App\Models\StudyPlanTask;
+use App\Services\CourseProgressService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -72,11 +75,15 @@ class VideoProgressController extends Controller
         }
 
         // Auto-complete only when genuinely watched past the threshold.
-        $isCompleted = (bool) $pivot->is_completed;
-        $completedAt = $pivot->completed_at ?? null;
+        $wasCompleted = (bool) $pivot->is_completed;
+        $isCompleted  = $wasCompleted;
+        $completedAt  = $pivot->completed_at ?? null;
+        $justCompleted = false;
+
         if (! $isCompleted && $duration > 0 && $watched >= $duration * self::COMPLETE_AT) {
-            $isCompleted = true;
-            $completedAt = now();
+            $isCompleted   = true;
+            $completedAt   = now();
+            $justCompleted = true;
         }
 
         DB::table('lesson_user')
@@ -88,6 +95,27 @@ class VideoProgressController extends Controller
                 'completed_at'    => $completedAt,
                 'updated_at'      => now(),
             ]);
+
+        // ── Auto-sync study plan task (only on the transition to completed) ──
+        if ($justCompleted) {
+            $courseId = $lesson->with('module.course')->findOrFail($lesson->id)->module->course_id;
+
+            // Sync enrollment progress
+            app(CourseProgressService::class)->syncEnrollment($user, $courseId);
+
+            // Mark corresponding study plan task as done
+            $studyPlan = StudyPlan::where('user_id', $user->id)
+                ->where('course_id', $courseId)
+                ->first();
+
+            if ($studyPlan) {
+                StudyPlanTask::where('study_plan_id', $studyPlan->id)
+                    ->where('lesson_id', $lesson->id)
+                    ->whereNull('completed_at')
+                    ->update(['completed_at' => now()]);
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         return response()->json([
             'watched_seconds' => $watched,

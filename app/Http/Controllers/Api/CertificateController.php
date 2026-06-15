@@ -36,6 +36,15 @@ class CertificateController extends Controller
             return response()->json(['message' => 'You are not enrolled in this course.'], 403);
         }
 
+        // Bundle certificate gate: check if bundle restricts certificate issuance
+        $bundleSvc = app(\App\Services\BundleAccessService::class);
+        if (! $bundleSvc->canAccessCertificate($user->id, $id)) {
+            return response()->json([
+                'message' => 'Certificate is not included in your bundle plan.',
+                'error'   => 'certificate_not_included',
+            ], 403);
+        }
+
         $progress = $this->progressService->calculate($user, $id);
 
         if ($progress['progress_percentage'] < 100) {

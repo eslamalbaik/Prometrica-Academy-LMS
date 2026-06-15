@@ -51,6 +51,7 @@ class CourseController extends Controller
             'discount_price' => 'nullable|numeric|min:0',
             'access_days' => 'nullable|integer|min:1',
             'include_in_subscription' => 'nullable|boolean',
+            'bundle_only'             => 'nullable|boolean',
             'status' => 'nullable|string'
         ]);
 
@@ -128,11 +129,13 @@ class CourseController extends Controller
             'language'         => 'sometimes|nullable|string',
             'price'            => 'sometimes|nullable|numeric|min:0',
             'discount_price'   => 'sometimes|nullable|numeric|min:0',
-            'access_days'      => 'sometimes|nullable|integer|min:1',
-            'is_free'          => 'sometimes|boolean',
-            'status'           => 'sometimes|string',
-            'is_published'     => 'sometimes|boolean',
-            'thumbnail'        => 'sometimes|nullable|image|max:2048',
+            'access_days'              => 'sometimes|nullable|integer|min:1',
+            'is_free'                  => 'sometimes|boolean',
+            'include_in_subscription'  => 'sometimes|boolean',
+            'bundle_only'              => 'sometimes|boolean',
+            'status'                   => 'sometimes|string',
+            'is_published'             => 'sometimes|boolean',
+            'thumbnail'                => 'sometimes|nullable|image|max:2048',
         ]);
 
         if (isset($validated['is_free']) && $validated['is_free']) {

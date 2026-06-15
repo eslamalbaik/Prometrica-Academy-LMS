@@ -216,7 +216,7 @@ class StudentController extends Controller
     {
         $user = $request->user();
         $lesson = \App\Models\Lesson::with('module.course')->findOrFail($id);
-        
+
         // Mark as completed
         $user->completedLessons()->syncWithoutDetaching([
             $id => ['is_completed' => true, 'completed_at' => now()]
@@ -226,6 +226,21 @@ class StudentController extends Controller
 
         $progressService = app(CourseProgressService::class);
         $progressPercentage = $progressService->syncEnrollment($user, $courseId);
+
+        // ── Auto-sync study plan task ──────────────────────────────────────────
+        // If the user has a study plan for this course, mark the matching
+        // lesson task as complete so the study plan stays in sync automatically.
+        $studyPlan = \App\Models\StudyPlan::where('user_id', $user->id)
+            ->where('course_id', $courseId)
+            ->first();
+
+        if ($studyPlan) {
+            \App\Models\StudyPlanTask::where('study_plan_id', $studyPlan->id)
+                ->where('lesson_id', $id)
+                ->whereNull('completed_at')
+                ->update(['completed_at' => now()]);
+        }
+        // ──────────────────────────────────────────────────────────────────────
 
         // Find next lesson
         $allLessons = \App\Models\Lesson::select('lessons.*')

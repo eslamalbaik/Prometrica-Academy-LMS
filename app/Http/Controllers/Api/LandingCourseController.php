@@ -12,6 +12,7 @@ class LandingCourseController extends Controller
     public function index(Request $request)
     {
         $courses = Course::where('is_published', true)
+            ->where('bundle_only', false)
             ->with([
                 'modules' => function ($query) {
                     $query->orderBy('order');

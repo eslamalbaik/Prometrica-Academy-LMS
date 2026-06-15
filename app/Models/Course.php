@@ -9,10 +9,10 @@ class Course extends Model
     use \Illuminate\Database\Eloquent\SoftDeletes;
 
     protected $fillable = [
-        'title', 'slug', 'short_description', 'description', 'thumbnail', 
-        'category', 'difficulty', 'language', 'meta_title', 'meta_description', 
+        'title', 'slug', 'short_description', 'description', 'thumbnail',
+        'category', 'difficulty', 'language', 'meta_title', 'meta_description',
         'keywords', 'is_free', 'price', 'discount_price', 'include_in_subscription',
-        'status', 'is_published', 'instructor_id', 'access_days'
+        'bundle_only', 'status', 'is_published', 'instructor_id', 'access_days'
     ];
 
     protected $appends = ['total_duration', 'lessons_count', 'average_rating'];

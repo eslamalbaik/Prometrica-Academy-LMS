@@ -119,8 +119,9 @@ class QuizController extends Controller
             $q->orderBy('order');
         }, 'questions.options', 'module:id,course_id'])->findOrFail($id);
 
-        // ─── Entitlement gate (never trust the frontend) ────────────────────────
         $courseId = $quiz->module?->course_id;
+
+        // ─── Entitlement gate (subscription tier) ──────────────────────────────
         if ($courseId) {
             $svc = app(\App\Services\EntitlementService::class);
             if (! $svc->allows($request->user(), (int) $courseId, 'has_quizzes')) {
@@ -128,6 +129,17 @@ class QuizController extends Controller
                     'error'         => 'upgrade_required',
                     'feature'       => 'has_quizzes',
                     'required_tier' => $svc->requiredTier((int) $courseId, 'has_quizzes') ?? 'Premium',
+                ], 403);
+            }
+        }
+
+        // ─── Bundle quiz visibility gate ────────────────────────────────────────
+        if ($courseId) {
+            $bundleSvc = app(\App\Services\BundleAccessService::class);
+            if (! $bundleSvc->canAccessQuiz($request->user()->id, (int) $courseId, (int) $id)) {
+                return response()->json([
+                    'error'   => 'quiz_not_included',
+                    'message' => 'This quiz is not included in your bundle.',
                 ], 403);
             }
         }
@@ -154,8 +166,9 @@ class QuizController extends Controller
         $user = $request->user();
         $quiz = Quiz::with('questions.options', 'module.course')->findOrFail($id);
 
-        // Entitlement gate — block grading for tiers without quiz access.
         $courseId = $quiz->module?->course_id;
+
+        // Entitlement gate — block grading for tiers without quiz access.
         if ($courseId) {
             $svc = app(\App\Services\EntitlementService::class);
             if (! $svc->allows($user, (int) $courseId, 'has_quizzes')) {
@@ -163,6 +176,17 @@ class QuizController extends Controller
                     'error'         => 'upgrade_required',
                     'feature'       => 'has_quizzes',
                     'required_tier' => $svc->requiredTier((int) $courseId, 'has_quizzes') ?? 'Premium',
+                ], 403);
+            }
+        }
+
+        // Bundle quiz visibility gate
+        if ($courseId) {
+            $bundleSvc = app(\App\Services\BundleAccessService::class);
+            if (! $bundleSvc->canAccessQuiz($user->id, (int) $courseId, (int) $id)) {
+                return response()->json([
+                    'error'   => 'quiz_not_included',
+                    'message' => 'This quiz is not included in your bundle.',
                 ], 403);
             }
         }
