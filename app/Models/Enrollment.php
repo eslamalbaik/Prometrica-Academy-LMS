@@ -8,12 +8,17 @@ class Enrollment extends Model
 {
     protected $fillable = [
         'user_id', 'course_id', 'course_package_id', 'bundle_id',
-        'progress', 'enrolled_at', 'expires_at', 'device_id',
+        'progress', 'enrolled_at', 'expires_at',
+        'device_id', 'device_ip', 'last_accessed_at',
+        'max_devices', 'is_active',
     ];
 
     protected $casts = [
         'enrolled_at' => 'datetime',
         'expires_at'  => 'datetime',
+        'last_accessed_at' => 'datetime',
+        'is_active' => 'boolean',
+        'max_devices' => 'integer',
     ];
 
     public function user()

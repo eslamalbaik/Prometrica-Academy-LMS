@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\LessonAttachment;
+use App\Services\DeviceVerificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -14,6 +15,7 @@ class StudentLessonController extends Controller
     public function show(Request $request, Lesson $lesson)
     {
         $user = $request->user();
+        $deviceService = new DeviceVerificationService();
 
         // ── 1. Resolve course via module relationship ─────────────────────────
         $lesson->loadMissing('module:id,course_id');
@@ -32,22 +34,26 @@ class StudentLessonController extends Controller
                 ], 403);
             }
 
-            // ── 3. Device-lock check ──────────────────────────────────────────
-            $incomingDeviceId = $request->header('X-Device-ID');
+            // ── 3. Device verification ────────────────────────────────────────
+            $verification = $deviceService->verifyDevice($enrollment, $request);
 
-            if ($incomingDeviceId) {
-                if (empty($enrollment->device_id)) {
-                    // First access from any device → register it
-                    $enrollment->update(['device_id' => $incomingDeviceId]);
-                } elseif ($enrollment->device_id !== $incomingDeviceId) {
-                    // Different device → block access
-                    return response()->json([
-                        'locked'        => true,
-                        'device_locked' => true,
-                        'message'       => 'هذا الكورس مرتبط بجهاز آخر. تواصل مع الدعم لإلغاء القفل.',
-                        'message_en'    => 'This course is locked to another device. Contact support to unlock.',
-                    ], 423);
-                }
+            if ($verification['verified'] === false) {
+                return response()->json(
+                    $deviceService->formatErrorResponse($verification),
+                    423
+                );
+            }
+
+            // First time access or update needed
+            if ($verification['should_update'] ?? false) {
+                $enrollment->update([
+                    'device_id' => $verification['fingerprint'],
+                    'device_ip' => $verification['ip'],
+                    'last_accessed_at' => now(),
+                ]);
+            } else {
+                // Update last access time
+                $enrollment->update(['last_accessed_at' => now()]);
             }
         }
 

@@ -3,50 +3,78 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\DigitalProduct;
 use App\Models\DigitalProductFile;
+use App\Models\DigitalProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
-/**
- * Admin management of the sellable files. Files are stored STRICTLY on the
- * `local` (private) disk rooted at storage/app/private — never on `public`.
- * They are therefore physically unreachable by a direct URL and can only be
- * served through the signed-download flow.
- */
 class DigitalProductFileController extends Controller
 {
-    /** POST /api/dashboard/digital-products/{product}/files */
     public function store(Request $request, DigitalProduct $product)
     {
-        $request->validate([
-            'files'   => 'required|array|min:1',
-            'files.*' => 'file|max:51200|mimes:pdf,epub,zip,doc,docx,ppt,pptx,xls,xlsx,png,jpg,jpeg', // 50MB each
+        $this->authorize('update', $product);
+
+        $validated = $request->validate([
+            'file' => 'required|file|mimes:pdf|max:102400',
+            'folder_id' => 'nullable|exists:digital_product_folders,id',
         ]);
 
-        $created = [];
+        $file = $request->file('file');
+        $path = $file->store("digital-products/{$product->id}", 'public');
 
-        foreach ($request->file('files') as $file) {
-            // PRIVATE vault. Path is relative to storage/app/private.
-            $path = $file->store("digital_products/{$product->id}", 'local');
+        $productFile = DigitalProductFile::create([
+            'digital_product_id' => $product->id,
+            'folder_id' => $validated['folder_id'] ?? null,
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_size' => $file->getSize(),
+        ]);
 
-            $created[] = DigitalProductFile::create([
-                'digital_product_id' => $product->id,
-                'file_name'          => $file->getClientOriginalName(),
-                'file_path'          => $path,
-                'file_size'          => $file->getSize(),
-            ]);
-        }
-
-        return response()->json($created, 201);
+        return response()->json([
+            'message' => 'File uploaded successfully',
+            'data' => $productFile,
+        ]);
     }
 
-    /** DELETE /api/dashboard/digital-product-files/{file} */
     public function destroy(DigitalProductFile $file)
     {
-        Storage::disk('local')->delete($file->file_path);
+        $this->authorize('update', $file->product);
+
+        if (Storage::disk('public')->exists($file->file_path)) {
+            Storage::disk('public')->delete($file->file_path);
+        }
+
         $file->delete();
 
-        return response()->json(['message' => 'File deleted']);
+        return response()->json(['message' => 'File deleted successfully']);
+    }
+
+    public function listFiles(DigitalProduct $product)
+    {
+        $this->authorize('view', $product);
+
+        $files = $product->files()
+            ->with('folder')
+            ->orderBy('order')
+            ->get();
+
+        return response()->json($files);
+    }
+
+    public function downloadFile(DigitalProductFile $file)
+    {
+        $enrollment = auth()->user()->enrollments()
+            ->where('digital_product_id', $file->digital_product_id)
+            ->first();
+
+        if (!$enrollment && !auth()->user()->isAdmin()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if (!Storage::disk('public')->exists($file->file_path)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        return Storage::disk('public')->download($file->file_path, $file->file_name);
     }
 }

@@ -33,6 +33,9 @@ Route::get('/landing/faqs', function () {
 // Public bundles (active only)
 Route::get('/landing/bundles', [\App\Http\Controllers\Api\BundleController::class, 'landing']);
 
+// Public site settings (homepage sections visibility + contact info)
+Route::get('/landing/settings', [\App\Http\Controllers\Api\SettingsController::class, 'getPublic']);
+
 // ─── Public certificate routes ───────────────────────────────────────────────
 Route::get('/certificates/{ulid}/verify',  [\App\Http\Controllers\Api\CertificateController::class, 'verify']);
 
@@ -89,6 +92,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::get('/enrollments',                               [\App\Http\Controllers\Api\UserController::class, 'enrollments']);
     Route::post('/enrollments',                              [\App\Http\Controllers\Api\UserController::class, 'adminEnroll']);
     Route::post('/enrollments/{id}/reset-device',            [\App\Http\Controllers\Api\UserController::class, 'resetDeviceLock']);
+
+    // Enrollment Management (for security settings)
+    Route::get('/enrollments-with-bundles',                  [\App\Http\Controllers\Api\EnrollmentManagementController::class, 'getEnrollmentsWithBundles']);
+    Route::post('/enrollments/{enrollment}/update-max-devices', [\App\Http\Controllers\Api\EnrollmentManagementController::class, 'updateMaxDevices']);
 
     // Course content builders
     Route::post('/modules',           [\App\Http\Controllers\Api\CourseModuleController::class, 'store']);
@@ -170,6 +177,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::put('/faqs/{faq}',   [\App\Http\Controllers\Api\FaqController::class, 'update']);
     Route::delete('/faqs/{faq}', [\App\Http\Controllers\Api\FaqController::class, 'destroy']);
 
+    // Site settings (admin)
+    Route::get('/settings',     [\App\Http\Controllers\Api\SettingsController::class, 'getAdmin']);
+    Route::put('/settings',     [\App\Http\Controllers\Api\SettingsController::class, 'updateAdmin']);
+
     // Course packages (tiered entitlements)
     Route::get('/courses/{course}/packages',  [\App\Http\Controllers\Api\CoursePackageController::class, 'index']);
     Route::post('/courses/{course}/packages', [\App\Http\Controllers\Api\CoursePackageController::class, 'store']);
@@ -181,6 +192,13 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     Route::post('/bundles',             [\App\Http\Controllers\Api\BundleController::class, 'store']);
     Route::put('/bundles/{bundle}',     [\App\Http\Controllers\Api\BundleController::class, 'update']);
     Route::delete('/bundles/{bundle}',  [\App\Http\Controllers\Api\BundleController::class, 'destroy']);
+
+    // Bundle Management (for security/settings)
+    Route::get('/bundles/{bundle}',                         [\App\Http\Controllers\Api\BundleManagementController::class, 'showBundle']);
+    Route::get('/bundles/{bundle}/students',                [\App\Http\Controllers\Api\BundleManagementController::class, 'getBundleStudents']);
+    Route::post('/bundles/{bundle}/students/{student}/toggle', [\App\Http\Controllers\Api\BundleManagementController::class, 'toggleStudentAccess']);
+    Route::post('/bundles/{bundle}/add-students',           [\App\Http\Controllers\Api\BundleManagementController::class, 'addStudentsToBundle']);
+    Route::delete('/bundles/{bundle}/students/{student}',   [\App\Http\Controllers\Api\BundleManagementController::class, 'removeStudentFromBundle']);
 
     // Bundle permission management
     Route::get('/bundles/{bundle}/permissions-summary',
@@ -195,6 +213,14 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('dashboard')->group(fu
     // FTR-005: Admin study plan management
     Route::get('/students/{userId}/study-plans',   [\App\Http\Controllers\Api\StudyPlanController::class, 'adminIndex']);
     Route::put('/study-plan-tasks/{task}',          [\App\Http\Controllers\Api\StudyPlanController::class, 'updateTask']);
+
+    // Security: Student device & bundle management
+    Route::get('/student-devices',                  [\App\Http\Controllers\Api\StudentSecurityController::class, 'studentDevices']);
+    Route::post('/students/{student}/remove-device', [\App\Http\Controllers\Api\StudentSecurityController::class, 'removeDeviceFromStudent']);
+    Route::post('/students/{student}/max-devices',  [\App\Http\Controllers\Api\StudentSecurityController::class, 'updateMaxDevices']);
+    Route::get('/student-bundles',                  [\App\Http\Controllers\Api\StudentSecurityController::class, 'studentBundles']);
+    Route::post('/student-enrollments/{enrollment}/toggle-access', [\App\Http\Controllers\Api\StudentSecurityController::class, 'toggleBundleAccess']);
+    Route::post('/student-bundles/assign',          [\App\Http\Controllers\Api\StudentSecurityController::class, 'assignBundleToStudent']);
 });
 
 // ─── Digital Products: Student library + entitlement download request ────────

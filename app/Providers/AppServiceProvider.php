@@ -19,6 +19,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register policies
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\SiteSettings::class, \App\Policies\SiteSettingsPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Enrollment::class, \App\Policies\EnrollmentPolicy::class);
+
         \Illuminate\Support\Facades\RateLimiter::for('analytics', function (\Illuminate\Http\Request $request) {
             return \Illuminate\Cache\RateLimiting\Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });

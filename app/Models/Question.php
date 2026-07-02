@@ -10,7 +10,7 @@ class Question extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'question_text', 'image_path', 'order',
+        'tenant_id', 'question_text', 'explanation', 'image_path', 'order',
     ];
 
     public function quizzes()

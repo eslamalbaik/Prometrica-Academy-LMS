@@ -26,6 +26,11 @@ class User extends Authenticatable
         'role',
         'avatar',
         'phone',
+        'university',
+        'specialty',
+        'graduation_year',
+        'target_exam',
+        'city',
         'study_emails_enabled',
     ];
 
@@ -49,6 +54,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'graduation_year' => 'integer',
         ];
     }
 

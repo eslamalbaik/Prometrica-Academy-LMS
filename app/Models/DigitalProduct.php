@@ -23,6 +23,11 @@ class DigitalProduct extends Model
         'is_free'   => 'boolean',
     ];
 
+    public function folders(): HasMany
+    {
+        return $this->hasMany(DigitalProductFolder::class)->whereNull('parent_folder_id')->orderBy('order');
+    }
+
     public function files(): HasMany
     {
         return $this->hasMany(DigitalProductFile::class);

@@ -56,7 +56,9 @@ class UserController extends Controller
             'enrolled_at'   => $e->created_at,
             'progress'      => $e->progress ?? 0,
             'device_locked' => !empty($e->device_id),
-            'device_id'     => $e->device_id,
+            'device_id'     => $e->device_id ? substr($e->device_id, 0, 16) . '...' : null,
+            'device_ip'     => $e->device_ip,
+            'last_accessed_at' => $e->last_accessed_at,
         ]);
 
         return response()->json($paginator);
@@ -118,10 +120,21 @@ class UserController extends Controller
     public function resetDeviceLock($id)
     {
         $enrollment = Enrollment::findOrFail($id);
-        $enrollment->update(['device_id' => null]);
+        $admin = auth()->user();
+
+        $enrollment->update([
+            'device_id' => null,
+            'device_ip' => null,
+            'last_accessed_at' => null,
+        ]);
+
+        // Log the action for audit trail
+        \Log::info("Device lock reset for enrollment {$id} by admin {$admin->id} ({$admin->email})");
 
         return response()->json([
-            'message' => 'Device lock cleared. Student can now login from any device.',
+            'message' => 'تم فك القفل بنجاح. يستطيع الطالب الآن الدخول من أي جهاز.',
+            'message_en' => 'Device lock cleared successfully. Student can now access from any device.',
+            'enrollment_id' => $enrollment->id,
         ]);
     }
 

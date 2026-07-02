@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // ─── 0. BUNDLES (Demo packages) ───────────────────────────────────────────
+        $this->call(BundleSeeder::class);
+
         // ─── 1. USERS ────────────────────────────────────────────────────────────
         $admin = User::firstOrCreate(
             ['email' => 'admin@prometrica.com'],

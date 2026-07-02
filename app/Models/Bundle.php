@@ -11,7 +11,7 @@ class Bundle extends Model
     protected $fillable = [
         'name', 'name_en', 'description', 'description_en',
         'price', 'image', 'is_active', 'sort', 'access_days',
-        'type', 'max_courses', 'auto_renewal',
+        'type', 'max_courses', 'max_devices', 'auto_renewal',
         'default_quiz_visibility', 'default_certificate_enabled', 'default_products_visibility',
         // Display fields (pricing card UI)
         'badge', 'badge_en', 'is_featured', 'color',
@@ -24,6 +24,7 @@ class Bundle extends Model
         'price'                        => 'float',
         'access_days'                  => 'integer',
         'max_courses'                  => 'integer',
+        'max_devices'                  => 'integer',
         'auto_renewal'                 => 'boolean',
         'default_certificate_enabled'  => 'boolean',
         'features'                     => 'array',

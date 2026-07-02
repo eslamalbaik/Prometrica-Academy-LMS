@@ -9,9 +9,11 @@ class DigitalProductFile extends Model
 {
     protected $fillable = [
         'digital_product_id',
+        'folder_id',
         'file_name',
         'file_path',
         'file_size',
+        'order',
     ];
 
     protected $casts = [
@@ -21,5 +23,10 @@ class DigitalProductFile extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(DigitalProduct::class, 'digital_product_id');
+    }
+
+    public function folder(): BelongsTo
+    {
+        return $this->belongsTo(DigitalProductFolder::class, 'folder_id');
     }
 }
